@@ -152,37 +152,34 @@ class EPGBridgeHandler:
     def _deliver(self, sender, recipients, content_bytes, folder="INBOX"):
         """
         Routes email after EPG scanning:
-          • Local recipients  (@jawabi.app)  → IMAP APPEND using master-user impersonation
-                                               Login as: recipient*admin  (Dovecot master user)
-                                               This places email directly in the correct user's folder.
-          • Remote recipients (@gmail.com…)  → SMTP relay via Haraka port 465 for internet delivery
+          • Local recipients  (@jawabi.app)  → IMAP APPEND (bypasses Haraka MX check)
+          • Remote recipients (@gmail.com…)  → SMTP relay via Haraka port 25
         """
         local_recipients  = [r for r in recipients if r.lower().endswith(f"@{LOCAL_DOMAIN}")]
         remote_recipients = [r for r in recipients if not r.lower().endswith(f"@{LOCAL_DOMAIN}")]
 
         success = True
-        # Deliver EVERYTHING via SMTP to the internal mailserver port 25.
-        # Poste.io will automatically sort it into the local mailbox if it's a local domain,
-        # or relay it to the internet if it's a remote domain.
-        if local_recipients or remote_recipients:
-            success &= self._relay_via_smtp(sender, recipients, content_bytes)
+
+        # Local recipients: deliver directly via IMAP APPEND (no DNS/MX checks)
+        if local_recipients:
+            success &= self._forward_to_imap(sender, local_recipients, content_bytes, folder)
+
+        # Remote recipients: relay via Haraka SMTP for internet delivery
+        if remote_recipients:
+            success &= self._relay_via_smtp(sender, remote_recipients, content_bytes)
             
         return success
 
     def _forward_to_imap(self, sender, recipients, content_bytes, folder="INBOX"):
         """
         Deliver email directly to Dovecot via IMAP APPEND.
-        Uses Dovecot master-user impersonation:
-          login as 'recipient*admin@jawabi.app' with admin password
-          → allows appending into ANY user's mailbox folder correctly.
+        Logs in as admin@jawabi.app and appends to the target folder.
         """
         success = False
         for recipient in recipients:
             try:
-                # Dovecot master-user format: targetuser*masteruser
-                master_login = f"{recipient}*{IMAP_USER}"
                 imap = imaplib.IMAP4_SSL(MAILU_HOST, IMAP_PORT)
-                imap.login(master_login, IMAP_PASS)
+                imap.login(IMAP_USER, IMAP_PASS)
 
                 # Ensure the target folder exists (create Junk if needed)
                 if folder != "INBOX":
