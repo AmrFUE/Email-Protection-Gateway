@@ -249,27 +249,52 @@ async def release_email(email_id: str, _=Depends(require_auth)):
         content = f.read()
         
     msg = message_from_bytes(content)
-    sender = msg['From']
-    if '<' in sender:
-        sender = sender.split('<')[1].split('>')[0]
-        
-    recipients = msg.get_all('To', []) + msg.get_all('Cc', [])
-    clean_recips = []
-    for r in recipients:
-        if '<' in r:
-            clean_recips.append(r.split('<')[1].split('>')[0])
-        else:
-            clean_recips.append(r.strip())
-            
-    try:
-        import smtplib
-        # MAILU_HOST is usually 'mailserver' for the internal docker network
-        with smtplib.SMTP('mailserver', 25, timeout=15) as smtp:
-            smtp.sendmail(sender, clean_recips, content)
-        return {"status": "ok", "message": "Email successfully released to inbox"}
-    except Exception as e:
-        logger.error(f"Release failed: {e}")
-        return {"status": "error", "message": f"SMTP Delivery Failed: {e}"}
+    
+    # Extract recipients
+    recipients = []
+    for hdr in ['To', 'Cc']:
+        vals = msg.get_all(hdr, [])
+        for r in vals:
+            if '<' in r:
+                recipients.append(r.split('<')[1].split('>')[0])
+            else:
+                recipients.append(r.strip())
+    
+    if not recipients:
+        return {"status": "error", "message": "No recipients found in email"}
+    
+    # Deliver via IMAP APPEND (bypasses Haraka MX check entirely)
+    import imaplib
+    IMAP_HOST = os.environ.get("MAILU_HOST", "mailserver")
+    IMAP_PORT = int(os.environ.get("IMAP_PORT", 993))
+    IMAP_USER = os.environ.get("IMAP_USER", "admin@jawabi.app")
+    IMAP_PASS = os.environ.get("IMAP_PASS", "admin123")
+    
+    delivered = []
+    failed = []
+    for recipient in recipients:
+        try:
+            master_login = f"{recipient}*{IMAP_USER}"
+            imap = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT)
+            imap.login(master_login, IMAP_PASS)
+            import time as _time
+            typ, data = imap.append(
+                "INBOX", None,
+                imaplib.Time2Internaldate(_time.time()),
+                content
+            )
+            imap.logout()
+            if typ == 'OK':
+                delivered.append(recipient)
+            else:
+                failed.append(f"{recipient}: {data}")
+        except Exception as e:
+            failed.append(f"{recipient}: {e}")
+    
+    if delivered:
+        return {"status": "ok", "message": f"Email released to inbox for: {', '.join(delivered)}"}
+    else:
+        return {"status": "error", "message": f"IMAP delivery failed: {'; '.join(failed)}"}
 
 @app.post("/api/action/block/{email_id}")
 async def block_email(email_id: str, _=Depends(require_auth)):

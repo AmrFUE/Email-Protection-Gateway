@@ -144,6 +144,10 @@ services:
       DASHBOARD_PASS: admin
       SECRET_KEY: "change-this-in-production"
       PORT: "8080"
+      MAILU_HOST: mailserver
+      IMAP_PORT: "993"
+      IMAP_USER: "admin@jawabi.app"
+      IMAP_PASS: "admin123"
     volumes:
       - mailbox_data:/data/mailbox
       - quarantine_data:/data/quarantine:ro
