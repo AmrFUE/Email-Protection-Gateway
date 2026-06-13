@@ -508,10 +508,18 @@ async function openDetail(id) {
     <div class="detail-row"><span>Action</span><span>${e.action}</span></div>
     ${e.block_reason?`<div class="detail-row"><span>Reason</span><span style="color:var(--red)">${e.block_reason}</span></div>`:''}
     <div class="detail-row"><span>Scan Time</span><span>${e.scan_time?e.scan_time.toFixed(2)+'s':'–'}</span></div>
-    <div style="margin-top:10px;">
+    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
       <a href="/api/download/${e.email_id}" target="_blank" style="display:inline-block;padding:6px 12px;background:var(--surface2);color:var(--text);text-decoration:none;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;font-weight:500;">
         📥 Download Original Email (.eml)
       </a>
+      ${e.action === 'QUARANTINED' ? `
+        <button onclick="doAction('${e.email_id}', 'release')" id="btn-rel-${e.email_id}" style="padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;">
+          ✅ Release to Inbox
+        </button>
+        <button onclick="doAction('${e.email_id}', 'block')" id="btn-blk-${e.email_id}" style="padding:6px 12px;background:var(--red);color:#fff;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;">
+          🚫 Block Permanently
+        </button>
+      ` : ''}
     </div>
     <div style="margin-top:20px;font-size:.8rem;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase">Stage Results</div>
     ${stagesHTML}
@@ -588,6 +596,31 @@ function buildModelAnalysis(stages) {
 
       const aiVerdictData = findKey(d.raw_report, 'ai_verdict');
       
+async function doAction(email_id, type) {
+  const btnRel = document.getElementById('btn-rel-' + email_id);
+  const btnBlk = document.getElementById('btn-blk-' + email_id);
+  
+  if (btnRel) btnRel.disabled = true;
+  if (btnBlk) btnBlk.disabled = true;
+  
+  try {
+    const res = await fetch('/api/action/' + type + '/' + email_id, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      alert(data.message);
+      closeModal();
+    } else {
+      alert("Action failed: " + (data.message || data.detail));
+      if (btnRel) btnRel.disabled = false;
+      if (btnBlk) btnBlk.disabled = false;
+    }
+  } catch(e) {
+    alert("Network error: " + e.message);
+    if (btnRel) btnRel.disabled = false;
+    if (btnBlk) btnBlk.disabled = false;
+  }
+}
+
       function buildJsonTree(obj) {
           if (typeof obj !== 'object' || obj === null) {
               let val = obj === null ? 'null' : obj.toString();

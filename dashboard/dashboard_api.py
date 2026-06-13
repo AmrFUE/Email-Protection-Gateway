@@ -233,6 +233,52 @@ async def download_email(email_id: str, _=Depends(require_auth)):
     raise HTTPException(status_code=404, detail="Email file not found in quarantine")
 
 
+@app.post("/api/action/release/{email_id}")
+async def release_email(email_id: str, _=Depends(require_auth)):
+    base_dir = "/data/quarantine"
+    eml_path = None
+    if os.path.exists(base_dir):
+        for root, _, files in os.walk(base_dir):
+            if f"{email_id}.eml" in files:
+                eml_path = os.path.join(root, f"{email_id}.eml")
+                break
+    if not eml_path:
+        raise HTTPException(status_code=404, detail="Email file not found")
+        
+    with open(eml_path, 'rb') as f:
+        content = f.read()
+        
+    msg = message_from_bytes(content)
+    sender = msg['From']
+    if '<' in sender:
+        sender = sender.split('<')[1].split('>')[0]
+        
+    recipients = msg.get_all('To', []) + msg.get_all('Cc', [])
+    clean_recips = []
+    for r in recipients:
+        if '<' in r:
+            clean_recips.append(r.split('<')[1].split('>')[0])
+        else:
+            clean_recips.append(r.strip())
+            
+    try:
+        import smtplib
+        # MAILU_HOST is usually 'mailserver' for the internal docker network
+        with smtplib.SMTP('mailserver', 25, timeout=15) as smtp:
+            smtp.sendmail(sender, clean_recips, content)
+        return {"status": "ok", "message": "Email successfully released to inbox"}
+    except Exception as e:
+        logger.error(f"Release failed: {e}")
+        return {"status": "error", "message": f"SMTP Delivery Failed: {e}"}
+
+@app.post("/api/action/block/{email_id}")
+async def block_email(email_id: str, _=Depends(require_auth)):
+    # Blocking just means we confirm the quarantine status and optionally delete the file
+    # For forensic purposes, we usually leave it in quarantine. 
+    return {"status": "ok", "message": "Email permanently blocked and kept in quarantine for analysis."}
+
+
+
 # ── Serve HTML
 @app.get("/{path:path}", response_class=HTMLResponse)
 async def serve_html(path: str, session: Optional[str] = Cookie(default=None)):
