@@ -1,0 +1,52 @@
+# Python virtual environments
+**/.venv/
+**/venv/
+**/env/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# IDE files
+**/.idea/
+**/.vscode/
+**/*.iml
+
+# Test files
+**/tests/
+**/test_/
+**/_test/
+
+# Logs
+**/logs/
+**/*.log
+**/log/
+
+# Runtime data (Mailu)
+mailu/data/log/
+mailu/data/queue/
+mailu/data/redis/
+mailu/data/roundcube/logs/
+mailu/data/roundcube/enigma/
+mailu/data/zpush/
+
+# Dovecot runtime files
+**/dovecot.index*
+**/dovecot-uidlist
+**/maildirfolder
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - keep if needed)
+# README*
+# HOW_TO_RUN*
+# team_instructions*

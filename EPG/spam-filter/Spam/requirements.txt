@@ -1,0 +1,22 @@
+# FastAPI + server
+fastapi
+uvicorn
+python-multipart
+
+# ML / NLP
+scikit-learn
+joblib
+pandas
+numpy
+nltk
+
+# Email authentication
+pyspf
+dkimpy
+dnspython
+
+# Reputation lookups
+requests
+
+# DKIM dependency
+authres

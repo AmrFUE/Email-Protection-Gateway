@@ -1,0 +1,210 @@
+# ══════════════════════════════════════════════════════════════
+#  EPG Full Stack — Master Docker Compose
+#  Run from: d:\ZZZZZZZZZZZZ\  (workspace root)
+#
+#  Services:
+#    Infrastructure : redis, postgres
+#    EPG Pipeline   : orchestrator, spam-filter, phishing-filter, malware-scanner
+#    New            : mail-server, dashboard
+#
+#  Start everything:
+#    docker compose up --build -d
+#
+#  Dashboard: http://localhost:8080   (admin / admin)
+#  Send test email: see README below
+# ══════════════════════════════════════════════════════════════
+
+networks:
+  epg-net:
+    driver: bridge
+
+volumes:
+  redis_data:
+  postgres_data:
+  quarantine_data:
+  email_queue:
+  mailbox_data:
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # INFRASTRUCTURE
+  # ──────────────────────────────────────────────────────────
+
+  redis:
+    image: redis:7-alpine
+    container_name: epg-redis
+    networks: [ epg-net ]
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: epg-postgres
+    networks: [ epg-net ]
+    environment:
+      POSTGRES_USER: epg
+      POSTGRES_PASSWORD: epg
+      POSTGRES_DB: epg
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U epg" ]
+      interval: 10s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # EPG PIPELINE (from ./EPG/)
+  # ──────────────────────────────────────────────────────────
+
+  spam-filter:
+    build: ./EPG/spam-filter/Spam
+    container_name: epg-spam
+    networks: [ epg-net ]
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
+
+  phishing-filter:
+    build: ./EPG/phishing-filter/phishing-filter-service
+    container_name: epg-phishing
+    networks: [ epg-net ]
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      retries: 3
+      start_period: 120s
+
+  malware-scanner:
+    build: ./EPG/malware-scanner
+    container_name: epg-malware
+    networks: [ epg-net ]
+    environment:
+      PORT: 8003
+    volumes:
+      - ./EPG/shared:/app/shared:ro
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8003/health" ]
+      interval: 30s
+      retries: 3
+      start_period: 45s
+
+  orchestrator:
+    build: ./EPG/orchestrator
+    container_name: epg-orchestrator
+    networks: [ epg-net ]
+    depends_on:
+      redis: { condition: service_healthy }
+      spam-filter: { condition: service_started }
+      phishing-filter: { condition: service_started }
+      malware-scanner: { condition: service_started }
+    environment:
+      REDIS_HOST: redis
+      SPAM_URL: http://spam-filter:8001
+      PHISHING_URL: http://phishing-filter:8002
+      MALWARE_URL: http://malware-scanner:8003
+      DYNAMIC_URL: http://34.12.15.69:8000
+      ENABLE_DYNAMIC: "true"
+      DYNAMIC_API_KEY: "knowhow-default-dev-key-change-me"
+      QUARANTINE_DIR: /data/quarantine
+    volumes:
+      - quarantine_data:/data/quarantine
+      - email_queue:/data/emails
+    restart: always
+
+  # ──────────────────────────────────────────────────────────
+  # ADMIN DASHBOARD  (standalone — ./dashboard/)
+  # http://localhost:8080   login: admin / admin
+  # ──────────────────────────────────────────────────────────
+
+  dashboard:
+    build: ./dashboard
+    container_name: epg-dashboard
+    networks: [ epg-net ]
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    environment:
+      REDIS_HOST: redis
+      MAILBOX_DIR: /data/mailbox
+      DASHBOARD_USER: admin
+      DASHBOARD_PASS: admin
+      SECRET_KEY: "change-this-in-production"
+      PORT: "8080"
+    volumes:
+      - mailbox_data:/data/mailbox
+      - quarantine_data:/data/quarantine:ro
+    restart: always
+
+  # ──────────────────────────────────────────────────────────
+  # MAIL SERVER (poste.io)
+  # Webmail: http://jawabi.app/  login: admin@jawabi.app / admin123
+  # ──────────────────────────────────────────────────────────
+
+  mailserver:
+    image: analogic/poste.io:latest
+    container_name: epg-mail-server
+    networks: [ epg-net ]
+    ports:
+      - "80:80" # Webmail HTTP
+      - "443:443" # Webmail HTTPS
+      - "143:143" # IMAP
+      - "993:993" # IMAP TLS
+      - "110:110" # POP3
+      - "995:995" # POP3 TLS
+    environment:
+      - HTTPS=OFF
+      - DISABLE_RSPAMD=TRUE
+      - DISABLE_CLAMAV=TRUE
+      - ADMIN_EMAIL=admin@jawabi.app
+      - ADMIN_PASSWORD=admin123
+    volumes:
+      - ./mailu/data:/data
+      - ./mailu/data/roundcube-config.inc.php:/opt/www/webmail/config/config.inc.php:ro
+    entrypoint: >
+      sh -c "
+        chmod -R 777 /data/queue /data/quarantine 2>/dev/null || true;
+        exec /init"
+    restart: always
+
+  # ──────────────────────────────────────────────────────────
+  # EPG BRIDGE (SMTP gateway - intercepts mail before delivery)
+  # Listens on :25 and :587, forwards to mailserver after EPG scanning
+  # ──────────────────────────────────────────────────────────
+
+  epg-bridge:
+    build:
+      context: ./mailu/epg-bridge
+    container_name: epg-bridge
+    networks: [ epg-net ]
+    ports:
+      - "25:25" # EPG Bridge SMTP (avoid conflict with mailserver port 25)
+      - "587:587" # Submission port
+    environment:
+      - REDIS_HOST=redis
+      - MAILU_HOST=mailserver
+      - IMAP_PORT=993
+      - IMAP_USER=admin@jawabi.app
+      - IMAP_PASS=admin123
+      - SMTP_HOSTNAME=jawabi.app
+      - LOCAL_DOMAIN=jawabi.app
+      - RELAY_PORT=25
+    volumes:
+      - email_queue:/data/emails
+    depends_on:
+      - mailserver
+      - redis
+    restart: always

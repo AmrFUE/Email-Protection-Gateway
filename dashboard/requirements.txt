@@ -1,0 +1,6 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+redis[asyncio]==5.0.8
+sse-starlette==2.1.0
+itsdangerous==2.2.0
+python-multipart==0.0.9

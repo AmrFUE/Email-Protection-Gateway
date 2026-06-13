@@ -1,0 +1,112 @@
+version: "3.8"
+
+services:
+  # ══════════════════════════════════════════════════════════
+  # Infrastructure
+  # ══════════════════════════════════════════════════════════
+  
+  redis:
+    image: redis:7-alpine
+    container_name: epg-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 3
+
+  # ══════════════════════════════════════════════════════════
+  # Orchestrator (routes emails through the pipeline)
+  # ══════════════════════════════════════════════════════════
+
+  orchestrator:
+    build: ./orchestrator
+    container_name: epg-orchestrator
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - SPAM_URL=http://spam-filter:8001
+      - PHISHING_URL=http://phishing-filter:8002
+      - MALWARE_URL=http://malware-scanner:8003
+      - DYNAMIC_URL=http://34.12.15.69:8000/docs
+      - ENABLE_DYNAMIC="true"
+      - DYNAMIC_API_KEY:"knowhow-default-dev-key-change-me"
+      - QUARANTINE_DIR=/data/quarantine
+    volumes:
+      - quarantine_data:/data/quarantine
+      - email_queue:/data/emails
+    restart: always
+
+  # ══════════════════════════════════════════════════════════
+  # Stage 3: Static Malware Scanner (YOUR PROJECT)
+  # ══════════════════════════════════════════════════════════
+
+  malware-scanner:
+    build: ./malware-scanner
+    container_name: epg-malware
+    ports:
+      - "8003:8003"
+    environment:
+      - PORT=8003
+    volumes:
+      - ./shared:/app/shared:ro
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
+
+  # ══════════════════════════════════════════════════════════
+  # Stage 1: Spam Filter (Member 1)
+  # ══════════════════════════════════════════════════════════
+
+  spam-filter:
+    build: ./spam-filter/Spam
+    container_name: epg-spam
+    ports:
+      - "8001:8001"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
+
+  # ══════════════════════════════════════════════════════════
+  # Stage 2: Phishing Filter (Member 2)
+  # Uncomment when ready
+  # ══════════════════════════════════════════════════════════
+
+  phishing-filter:
+    build: ./phishing-filter/phishing-filter-service
+    container_name: epg-phishing
+    ports:
+      - "8002:8002"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
+
+  # ══════════════════════════════════════════════════════════
+  # Stage 4: Dynamic Analysis (Member 4)
+  # Uncomment when ready
+  # ══════════════════════════════════════════════════════════
+
+  # dynamic-analysis:
+  #   build: ./dynamic-analysis
+  #   container_name: epg-dynamic
+  #   ports:
+  #     - "8004:8004"
+  #   restart: always
+
+volumes:
+  redis_data:
+  quarantine_data:
+  email_queue:

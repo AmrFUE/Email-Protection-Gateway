@@ -1,0 +1,3 @@
+aiosmtpd==1.4.6
+redis[asyncio]==5.0.8
+aiofiles==23.2.1
