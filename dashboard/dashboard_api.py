@@ -266,35 +266,26 @@ async def release_email(email_id: str, _=Depends(require_auth)):
     # Deliver via IMAP APPEND (bypasses Haraka MX check entirely)
     import imaplib
     IMAP_HOST = os.environ.get("MAILU_HOST", "mailserver")
-    IMAP_PORT = int(os.environ.get("IMAP_PORT", 993))
-    IMAP_USER = os.environ.get("IMAP_USER", "admin@jawabi.app")
-    IMAP_PASS = os.environ.get("IMAP_PASS", "admin123")
+    IMAP_PORT_NUM = int(os.environ.get("IMAP_PORT", 993))
+    IMAP_USER_ADDR = os.environ.get("IMAP_USER", "admin@jawabi.app")
+    IMAP_PASS_VAL = os.environ.get("IMAP_PASS", "admin123")
     
-    delivered = []
-    failed = []
-    for recipient in recipients:
-        try:
-            master_login = f"{recipient}*{IMAP_USER}"
-            imap = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT)
-            imap.login(master_login, IMAP_PASS)
-            import time as _time
-            typ, data = imap.append(
-                "INBOX", None,
-                imaplib.Time2Internaldate(_time.time()),
-                content
-            )
-            imap.logout()
-            if typ == 'OK':
-                delivered.append(recipient)
-            else:
-                failed.append(f"{recipient}: {data}")
-        except Exception as e:
-            failed.append(f"{recipient}: {e}")
-    
-    if delivered:
-        return {"status": "ok", "message": f"Email released to inbox for: {', '.join(delivered)}"}
-    else:
-        return {"status": "error", "message": f"IMAP delivery failed: {'; '.join(failed)}"}
+    try:
+        imap = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT_NUM)
+        imap.login(IMAP_USER_ADDR, IMAP_PASS_VAL)
+        typ, data = imap.append(
+            "INBOX", None,
+            imaplib.Time2Internaldate(time.time()),
+            content
+        )
+        imap.logout()
+        if typ == 'OK':
+            return {"status": "ok", "message": f"Email released to inbox for: {', '.join(recipients)}"}
+        else:
+            return {"status": "error", "message": f"IMAP APPEND failed: {data}"}
+    except Exception as e:
+        logger.error(f"Release failed: {e}")
+        return {"status": "error", "message": f"IMAP delivery failed: {e}"}
 
 @app.post("/api/action/block/{email_id}")
 async def block_email(email_id: str, _=Depends(require_auth)):
