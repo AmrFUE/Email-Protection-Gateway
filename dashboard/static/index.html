@@ -596,31 +596,6 @@ function buildModelAnalysis(stages) {
 
       const aiVerdictData = findKey(d.raw_report, 'ai_verdict');
       
-async function doAction(email_id, type) {
-  const btnRel = document.getElementById('btn-rel-' + email_id);
-  const btnBlk = document.getElementById('btn-blk-' + email_id);
-  
-  if (btnRel) btnRel.disabled = true;
-  if (btnBlk) btnBlk.disabled = true;
-  
-  try {
-    const res = await fetch('/api/action/' + type + '/' + email_id, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok && data.status === 'ok') {
-      alert(data.message);
-      closeModal();
-    } else {
-      alert("Action failed: " + (data.message || data.detail));
-      if (btnRel) btnRel.disabled = false;
-      if (btnBlk) btnBlk.disabled = false;
-    }
-  } catch(e) {
-    alert("Network error: " + e.message);
-    if (btnRel) btnRel.disabled = false;
-    if (btnBlk) btnBlk.disabled = false;
-  }
-}
-
       function buildJsonTree(obj) {
           if (typeof obj !== 'object' || obj === null) {
               let val = obj === null ? 'null' : obj.toString();
@@ -745,6 +720,30 @@ async function fetchJSON(url) {
     if (r.status === 401) { location.reload(); return null; }
     return r.ok ? r.json() : null;
   } catch { return null; }
+}
+async function doAction(email_id, type) {
+  const btnRel = document.getElementById('btn-rel-' + email_id);
+  const btnBlk = document.getElementById('btn-blk-' + email_id);
+  
+  if (btnRel) btnRel.disabled = true;
+  if (btnBlk) btnBlk.disabled = true;
+  
+  try {
+    const res = await fetch('/api/action/' + type + '/' + email_id, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      alert(data.message);
+      closeModal();
+    } else {
+      alert("Action failed: " + (data.message || data.detail));
+      if (btnRel) btnRel.disabled = false;
+      if (btnBlk) btnBlk.disabled = false;
+    }
+  } catch(e) {
+    alert("Network error: " + e.message);
+    if (btnRel) btnRel.disabled = false;
+    if (btnBlk) btnBlk.disabled = false;
+  }
 }
 </script>
 </body>
