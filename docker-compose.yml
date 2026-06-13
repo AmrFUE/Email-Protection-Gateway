@@ -177,7 +177,6 @@ services:
       - ADMIN_PASSWORD=admin123
     volumes:
       - ./mailu/data:/data
-      - ./mailu/data/roundcube-config.inc.php:/opt/www/webmail/config/config.inc.php:ro
     entrypoint: >
       sh -c "
         chmod -R 777 /data/queue /data/quarantine 2>/dev/null || true;
