@@ -19,7 +19,7 @@ venv.bak/
 
 # Database / Redis Data
 data/
-EPG/shared/
+
 mailu/data/
 
 # Large Datasets (Over GitHub 50MB-100MB Limit)
