@@ -344,7 +344,15 @@ class EPGOrchestrator:
             except KeyboardInterrupt:
                 logger.info("Shutting down orchestrator.")
                 break
+            except redis.exceptions.TimeoutError:
+                # Normal TCP timeout when idle in Docker, ignore and loop
+                continue
+            except redis.exceptions.ConnectionError:
+                logger.warning("Redis connection dropped, reconnecting...")
+                time.sleep(2)
             except Exception as e:
+                if "Timeout reading from socket" in str(e):
+                    continue
                 logger.error(f"Queue processing error: {e}")
                 time.sleep(1)
 
