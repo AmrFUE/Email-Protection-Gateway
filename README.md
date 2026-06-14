@@ -89,6 +89,9 @@ Analyzes email headers and body content using two ML models.
 
 ## Architecture
 
+> [!TIP]
+> See [SYSTEM_MAP.md](SYSTEM_MAP.md) for a visual diagram of the EPG layers.
+
 ```
 epg/
 ├── EPG/

@@ -1,0 +1,52 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff' }}}%%
+graph TD
+    classDef entry fill:#0b5d75,stroke:#063a49,stroke-width:2px,color:#fff
+    classDef queue fill:#8b5a2b,stroke:#5c3a1c,stroke-width:2px,color:#fff
+    classDef api fill:#6b7280,stroke:#4b5563,stroke-width:2px,color:#fff
+    classDef outcome fill:#b97375,stroke:#8b5658,stroke-width:2px,color:#fff
+    classDef dash fill:#374151,stroke:#1f2937,stroke-width:2px,color:#fff
+    
+    subgraph Entry ["External Entry Point"]
+        direction TB
+        SMTP["SMTP Port 25"] --> MailServer["Postfix / Mailu Mail Server"]
+    end
+    
+    MailServer --> RedisQueue[("Redis Job Queue")]
+    
+    subgraph APIs ["Internal Pipeline APIs"]
+        direction TB
+        Orch["Orchestrator"]
+        Orch -- "/scan" --> MS["Malware Scanner :8003"]
+        Orch -- "/scan" --> DS["Dynamic Sandbox :8004"]
+        Orch -- "/scan" --> PF["Phishing Filter :8002"]
+        Orch -- "/scan" --> SF["Spam Filter :8001"]
+    end
+
+    RedisQueue --> Orch
+    
+    subgraph Outcomes ["Decision Outcomes"]
+        direction TB
+        Logic{"Final Decision"}
+        Logic -- "BLOCK" --> Quarantine["Quarantine Folder<br/>(/malware | /phishing | /spam)"]
+        Logic -- "DELIVER" --> Inbox["Mail Server Inbox"]
+        Logic -- "SUSPICIOUS" --> SOC["SOC Review Queue"]
+    end
+
+    MS & DS & PF & SF --> Logic
+    Logic -.- Dash
+    
+    subgraph Dashboard ["Admin Dashboard Pages"]
+        direction TB
+        Dash["/dashboard"]
+        Dash --> Logs["/logs (scan list, search, filter)"]
+        Dash --> Quar["/quarantine (blocked email mgmt)"]
+        Dash --> Stats["/stats (detection rate charts)"]
+        Dash --> Settings["/settings (enable/disable stages)"]
+    end
+
+    %% Class assignments
+    class SMTP,MailServer,Orch entry
+    class RedisQueue queue
+    class MS,DS,PF,SF api
+    class Logic,Quarantine,Inbox,SOC outcome
+    class Dash,Logs,Quar,Stats,Settings dash
