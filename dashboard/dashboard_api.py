@@ -87,18 +87,31 @@ async def login(request: Request):
     username = form.get("username")
     password = form.get("password")
     
+    # Root admin check
     if username == DASHBOARD_USER and password == DASHBOARD_PASS:
         resp = JSONResponse({"status": "ok", "role": "admin"})
         resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
         return resp
         
+    # Redis user check
     rdb = await get_redis()
-    stored_pass = await rdb.hget("dashboard_users", username)
-    if stored_pass and stored_pass == password:
-        resp = JSONResponse({"status": "ok", "role": "analyst"})
-        resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
-        return resp
+    raw = await rdb.hget("dashboard_users", username)
+    if raw:
+        try:
+            user_data = json.loads(raw)
+            stored_pass = user_data.get("password", "")
+            role = user_data.get("role", "analyst")
+        except (json.JSONDecodeError, TypeError):
+            # Backward compat: old format stored password as plain string
+            stored_pass = raw
+            role = "analyst"
+        if stored_pass == password:
+            resp = JSONResponse({"status": "ok", "role": role})
+            resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
+            logger.info(f"Login OK: {username} (role={role})")
+            return resp
         
+    logger.warning(f"Login FAILED for user: {username}")
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
@@ -306,51 +319,36 @@ async def block_email(email_id: str, _=Depends(require_auth)):
 
 
 # ── Settings & User Management
-ENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "EPG", ".env"))
-
-def read_env():
-    env_vars = {}
-    if os.path.exists(ENV_PATH):
-        with open(ENV_PATH, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, val = line.split("=", 1)
-                    env_vars[key.strip()] = val.strip()
-    return env_vars
-
-def write_env(env_vars):
-    lines = []
-    if os.path.exists(ENV_PATH):
-        with open(ENV_PATH, "r") as f:
-            lines = f.readlines()
-            
-    # Update existing lines
-    keys_written = set()
-    for i, line in enumerate(lines):
-        s_line = line.strip()
-        if s_line and not s_line.startswith("#") and "=" in s_line:
-            k = s_line.split("=", 1)[0].strip()
-            if k in env_vars:
-                lines[i] = f"{k}={env_vars[k]}\n"
-                keys_written.add(k)
-                
-    # Append new keys
-    for k, v in env_vars.items():
-        if k not in keys_written:
-            lines.append(f"{k}={v}\n")
-            
-    with open(ENV_PATH, "w") as f:
-        f.writelines(lines)
+SETTINGS_REDIS_KEY = "epg_settings"
 
 @app.get("/api/settings")
 async def get_settings(_=Depends(require_auth)):
-    return read_env()
+    rdb = await get_redis()
+    raw = await rdb.get(SETTINGS_REDIS_KEY)
+    if raw:
+        return json.loads(raw)
+    # Return defaults if nothing saved yet
+    return {
+        "OTX_API_KEY": "",
+        "MALWAREBAZAAR_API_KEY": "",
+        "URLHAUS_API_KEY": "",
+        "ANYRUN_API_KEY": "",
+        "ENABLE_DYNAMIC": "false",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "MALWARE_PROJECT_PATH": ""
+    }
 
 @app.post("/api/settings")
 async def save_settings(request: Request, _=Depends(require_auth)):
     data = await request.json()
-    write_env(data)
+    rdb = await get_redis()
+    # Merge with existing settings
+    raw = await rdb.get(SETTINGS_REDIS_KEY)
+    existing = json.loads(raw) if raw else {}
+    existing.update(data)
+    await rdb.set(SETTINGS_REDIS_KEY, json.dumps(existing))
+    logger.info(f"Settings saved: {list(data.keys())}")
     return {"status": "ok"}
 
 @app.get("/api/users")
@@ -359,8 +357,13 @@ async def get_users(_=Depends(require_auth)):
     users = await rdb.hgetall("dashboard_users")
     # Return list of usernames, plus the root admin
     user_list = [{"username": DASHBOARD_USER, "role": "admin"}]
-    for u in users.keys():
-        user_list.append({"username": u, "role": "analyst"})
+    for u, raw in users.items():
+        try:
+            user_data = json.loads(raw)
+            role = user_data.get("role", "analyst")
+        except (json.JSONDecodeError, TypeError):
+            role = "analyst"
+        user_list.append({"username": u, "role": role})
     return user_list
 
 @app.post("/api/users")
@@ -368,12 +371,40 @@ async def add_user(request: Request, _=Depends(require_auth)):
     data = await request.json()
     username = data.get("username")
     password = data.get("password")
+    role = data.get("role", "analyst")
     if not username or not password:
         raise HTTPException(status_code=400, detail="Missing username or password")
     if username == DASHBOARD_USER:
         raise HTTPException(status_code=400, detail="Cannot overwrite root admin")
+    if role not in ("admin", "analyst"):
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'analyst'")
     rdb = await get_redis()
-    await rdb.hset("dashboard_users", username, password)
+    user_data = json.dumps({"password": password, "role": role})
+    await rdb.hset("dashboard_users", username, user_data)
+    logger.info(f"User created: {username} (role={role})")
+    return {"status": "ok"}
+
+@app.put("/api/users/{username}")
+async def update_user(username: str, request: Request, _=Depends(require_auth)):
+    if username == DASHBOARD_USER:
+        raise HTTPException(status_code=400, detail="Cannot modify root admin")
+    rdb = await get_redis()
+    raw = await rdb.hget("dashboard_users", username)
+    if not raw:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        user_data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        user_data = {"password": raw}
+    data = await request.json()
+    if "role" in data:
+        if data["role"] not in ("admin", "analyst"):
+            raise HTTPException(status_code=400, detail="Role must be 'admin' or 'analyst'")
+        user_data["role"] = data["role"]
+    if "password" in data and data["password"]:
+        user_data["password"] = data["password"]
+    await rdb.hset("dashboard_users", username, json.dumps(user_data))
+    logger.info(f"User updated: {username} -> {user_data.get('role')}")
     return {"status": "ok"}
 
 @app.delete("/api/users/{username}")
@@ -382,6 +413,7 @@ async def delete_user(username: str, _=Depends(require_auth)):
         raise HTTPException(status_code=400, detail="Cannot delete root admin")
     rdb = await get_redis()
     await rdb.hdel("dashboard_users", username)
+    logger.info(f"User deleted: {username}")
     return {"status": "ok"}
 
 # ── Serve HTML
