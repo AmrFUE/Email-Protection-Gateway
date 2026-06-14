@@ -163,6 +163,59 @@ tbody td{padding:12px 16px;font-size:.8rem}
 .user-list h4{font-size:.75rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em}
 .user-item{padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.83rem;transition:background .15s}
 .user-item:hover,.user-item.active{background:var(--surface2)}
+
+/* ── SETTINGS PAGE ── */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.settings-grid{grid-template-columns:1fr}}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px}
+.settings-card h3{font-size:.85rem;font-weight:600;margin-bottom:4px}
+.settings-card .card-desc{font-size:.75rem;color:var(--muted);margin-bottom:20px}
+.settings-card.full-width{grid-column:1/-1}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.75rem;font-weight:500;color:var(--muted);margin-bottom:6px;
+  letter-spacing:.04em;text-transform:uppercase}
+.form-group input[type=text],.form-group input[type=password]{width:100%;background:var(--surface2);
+  border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);
+  font-size:.85rem;font-family:'Inter',sans-serif;outline:none;transition:border .2s}
+.form-group input:focus{border-color:var(--accent)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;
+  border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:.85rem}
+.toggle-label small{display:block;color:var(--muted);font-size:.72rem;margin-top:2px}
+.toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--surface2);border-radius:100px;
+  cursor:pointer;transition:background .2s;border:1px solid var(--border)}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:2px;bottom:2px;
+  background:var(--muted);border-radius:50%;transition:transform .2s}
+.toggle-switch input:checked+.toggle-slider{background:var(--accent);border-color:var(--accent)}
+.toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px);background:#fff}
+.btn-save{padding:10px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;
+  font-size:.85rem;font-weight:600;cursor:pointer;transition:background .2s;margin-top:8px}
+.btn-save:hover{background:#388bfd}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-danger{padding:6px 14px;background:transparent;border:1px solid var(--red);color:var(--red);
+  border-radius:6px;font-size:.75rem;cursor:pointer;transition:all .2s}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-add{padding:8px 20px;background:var(--green);color:#fff;border:none;border-radius:8px;
+  font-size:.8rem;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-add:hover{background:#2ea043}
+.user-table{width:100%;border-collapse:collapse;margin-top:16px}
+.user-table th{text-align:left;font-size:.72rem;color:var(--muted);font-weight:500;
+  letter-spacing:.05em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--border)}
+.user-table td{padding:10px 12px;font-size:.83rem;border-bottom:1px solid var(--border)}
+.user-table .role-badge{display:inline-block;padding:2px 10px;border-radius:100px;
+  font-size:.7rem;font-weight:600}
+.user-table .role-badge.admin{background:#1f6feb22;color:var(--blue)}
+.user-table .role-badge.analyst{background:#bc8cff22;color:var(--purple)}
+.add-user-form{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.add-user-form .form-group{margin-bottom:0;flex:1;min-width:140px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;
+  padding:12px 24px;border-radius:8px;font-size:.85rem;font-weight:500;
+  opacity:0;transform:translateY(20px);transition:all .3s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.error{background:var(--red)}
 </style>
 </head>
 <body>
@@ -211,7 +264,7 @@ tbody td{padding:12px 16px;font-size:.8rem}
         <span class="icon">✅</span>Clean</a>
     </nav>
     <div class="sidebar-footer" style="display:flex;flex-direction:column;gap:12px;">
-      <a href="/dashboard/settings" style="display:flex;align-items:center;gap:10px;color:var(--muted);text-decoration:none;font-size:.875rem;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
+      <a onclick="showPage('settings')" id="nav-settings" style="display:flex;align-items:center;gap:10px;color:var(--muted);text-decoration:none;font-size:.875rem;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
         <span class="icon" style="font-size:1rem;width:20px;text-align:center;">⚙️</span>Settings
       </a>
       <button onclick="doLogout()">⏻ Sign out</button>
@@ -299,6 +352,84 @@ tbody td{padding:12px 16px;font-size:.8rem}
         </div>
       </div>
 
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="settings-grid">
+
+          <!-- API Keys -->
+          <div class="settings-card">
+            <h3>🔑 API Keys</h3>
+            <p class="card-desc">Threat intelligence & external service credentials</p>
+            <div class="form-group">
+              <label>OTX API Key</label>
+              <input type="password" id="set-otx" placeholder="Enter your AlienVault OTX key">
+            </div>
+            <div class="form-group">
+              <label>MalwareBazaar API Key</label>
+              <input type="password" id="set-malwarebazaar" placeholder="Enter your MalwareBazaar key">
+            </div>
+            <div class="form-group">
+              <label>URLhaus API Key</label>
+              <input type="password" id="set-urlhaus" placeholder="Enter your URLhaus key">
+            </div>
+            <div class="form-group">
+              <label>ANY.RUN API Key</label>
+              <input type="password" id="set-anyrun" placeholder="Enter your ANY.RUN key">
+            </div>
+          </div>
+
+          <!-- Pipeline Toggles -->
+          <div class="settings-card">
+            <h3>⚙️ Pipeline Configuration</h3>
+            <p class="card-desc">Enable or disable detection stages</p>
+            <div class="toggle-row">
+              <div class="toggle-label">Dynamic Analysis<small>Headless browser URL scanning (port 8004)</small></div>
+              <label class="toggle-switch"><input type="checkbox" id="set-dynamic"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="form-group" style="margin-top:20px">
+              <label>Redis Host</label>
+              <input type="text" id="set-redis-host" placeholder="redis">
+            </div>
+            <div class="form-group">
+              <label>Redis Port</label>
+              <input type="text" id="set-redis-port" placeholder="6379">
+            </div>
+            <div class="form-group">
+              <label>Malware Project Path</label>
+              <input type="text" id="set-malware-path" placeholder="Path to malware scanner project">
+            </div>
+            <div style="text-align:right;margin-top:12px">
+              <button class="btn-save" onclick="saveSettings()" id="btn-save-settings">Save Settings</button>
+            </div>
+          </div>
+
+          <!-- User Management -->
+          <div class="settings-card full-width">
+            <h3>👥 User Management</h3>
+            <p class="card-desc">Manage dashboard analysts and administrators</p>
+            <div class="add-user-form">
+              <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="new-username" placeholder="e.g. john_soc">
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="new-password" placeholder="Set a password">
+              </div>
+              <button class="btn-add" onclick="addUser()" style="height:38px">+ Add User</button>
+            </div>
+            <table class="user-table">
+              <thead><tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th style="text-align:right">Actions</th>
+              </tr></thead>
+              <tbody id="users-tbody"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
 
     </div>
   </div>
@@ -704,14 +835,23 @@ function showPage(name, filter) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
   
-  if (name !== 'logs') {
-    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  // Clear all nav active states
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  const settingsNav = document.getElementById('nav-settings');
+  if (settingsNav) settingsNav.style.color = 'var(--muted)';
+
+  if (name === 'settings') {
+    document.getElementById('page-title').textContent = 'Settings';
+    if (settingsNav) settingsNav.style.color = 'var(--blue)';
+    loadSettings();
+    loadUsers();
+  } else if (name === 'logs') {
+    document.getElementById('page-title').textContent = 'Email Logs';
+    loadLogs(filter || 'all');
+  } else {
     const navEl = document.getElementById(`nav-${name}`);
     if (navEl) navEl.classList.add('active');
     document.getElementById('page-title').textContent = 'Overview';
-  } else {
-    document.getElementById('page-title').textContent = 'Email Logs';
-    loadLogs(filter || 'all');
   }
 }
 
@@ -747,6 +887,138 @@ async function doAction(email_id, type) {
     if (btnRel) btnRel.disabled = false;
     if (btnBlk) btnBlk.disabled = false;
   }
+}
+
+// ── SETTINGS ──────────────────────────────────────────
+async function loadSettings() {
+  const data = await fetchJSON('/api/settings');
+  if (!data) return;
+  document.getElementById('set-otx').value = data.OTX_API_KEY || '';
+  document.getElementById('set-malwarebazaar').value = data.MALWAREBAZAAR_API_KEY || '';
+  document.getElementById('set-urlhaus').value = data.URLHAUS_API_KEY || '';
+  document.getElementById('set-anyrun').value = data.ANYRUN_API_KEY || '';
+  document.getElementById('set-dynamic').checked = (data.ENABLE_DYNAMIC || '').toLowerCase() === 'true';
+  document.getElementById('set-redis-host').value = data.REDIS_HOST || '';
+  document.getElementById('set-redis-port').value = data.REDIS_PORT || '';
+  document.getElementById('set-malware-path').value = data.MALWARE_PROJECT_PATH || '';
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('btn-save-settings');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    const payload = {
+      OTX_API_KEY: document.getElementById('set-otx').value,
+      MALWAREBAZAAR_API_KEY: document.getElementById('set-malwarebazaar').value,
+      URLHAUS_API_KEY: document.getElementById('set-urlhaus').value,
+      ANYRUN_API_KEY: document.getElementById('set-anyrun').value,
+      ENABLE_DYNAMIC: document.getElementById('set-dynamic').checked ? 'true' : 'false',
+      REDIS_HOST: document.getElementById('set-redis-host').value,
+      REDIS_PORT: document.getElementById('set-redis-port').value,
+      MALWARE_PROJECT_PATH: document.getElementById('set-malware-path').value
+    };
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      showToast('Settings saved successfully!');
+    } else {
+      showToast('Failed to save settings', true);
+    }
+  } catch(e) {
+    showToast('Network error: ' + e.message, true);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Save Settings';
+}
+
+// ── USER MANAGEMENT ───────────────────────────────────
+async function loadUsers() {
+  const data = await fetchJSON('/api/users');
+  if (!data) return;
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td>${u.username}</td>
+      <td><span class="role-badge ${u.role}">${u.role}</span></td>
+      <td style="text-align:right">
+        ${u.role === 'admin' ? '<span style="color:var(--muted);font-size:.75rem">Protected</span>'
+          : `<button class="btn-danger" onclick="deleteUser('${u.username}')">Delete</button>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function addUser() {
+  const usernameEl = document.getElementById('new-username');
+  const passwordEl = document.getElementById('new-password');
+  const username = usernameEl.value.trim();
+  const password = passwordEl.value.trim();
+  if (!username || !password) {
+    showToast('Username and password are required', true);
+    return;
+  }
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(`User "${username}" added successfully!`);
+      usernameEl.value = '';
+      passwordEl.value = '';
+      loadUsers();
+    } else {
+      showToast(data.detail || 'Failed to add user', true);
+    }
+  } catch(e) {
+    showToast('Network error: ' + e.message, true);
+  }
+}
+
+async function deleteUser(username) {
+  if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+  try {
+    const res = await fetch(`/api/users/${username}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast(`User "${username}" deleted`);
+      loadUsers();
+    } else {
+      const data = await res.json();
+      showToast(data.detail || 'Failed to delete user', true);
+    }
+  } catch(e) {
+    showToast('Network error: ' + e.message, true);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────
+function showToast(msg, isError) {
+  let toast = document.getElementById('toast-el');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-el';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.className = 'toast' + (isError ? ' error' : '');
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ── DEEP LINK ─────────────────────────────────────────
+if (window.location.pathname.includes('/settings')) {
+  setTimeout(() => {
+    if (document.getElementById('app').style.display !== 'none') {
+      showPage('settings');
+    }
+  }, 500);
 }
 </script>
 </body>

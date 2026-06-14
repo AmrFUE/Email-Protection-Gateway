@@ -84,11 +84,21 @@ def require_auth(session: Optional[str] = Cookie(default=None)):
 @app.post("/login")
 async def login(request: Request):
     form = await request.form()
-    if form.get("username") == DASHBOARD_USER and form.get("password") == DASHBOARD_PASS:
-        resp = JSONResponse({"status": "ok"})
-        resp.set_cookie("session", make_token(form["username"]),
-                        httponly=True, max_age=86400)
+    username = form.get("username")
+    password = form.get("password")
+    
+    if username == DASHBOARD_USER and password == DASHBOARD_PASS:
+        resp = JSONResponse({"status": "ok", "role": "admin"})
+        resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
         return resp
+        
+    rdb = await get_redis()
+    stored_pass = await rdb.hget("dashboard_users", username)
+    if stored_pass and stored_pass == password:
+        resp = JSONResponse({"status": "ok", "role": "analyst"})
+        resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
+        return resp
+        
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
@@ -294,6 +304,85 @@ async def block_email(email_id: str, _=Depends(require_auth)):
     return {"status": "ok", "message": "Email permanently blocked and kept in quarantine for analysis."}
 
 
+
+# ── Settings & User Management
+ENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "EPG", ".env"))
+
+def read_env():
+    env_vars = {}
+    if os.path.exists(ENV_PATH):
+        with open(ENV_PATH, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    env_vars[key.strip()] = val.strip()
+    return env_vars
+
+def write_env(env_vars):
+    lines = []
+    if os.path.exists(ENV_PATH):
+        with open(ENV_PATH, "r") as f:
+            lines = f.readlines()
+            
+    # Update existing lines
+    keys_written = set()
+    for i, line in enumerate(lines):
+        s_line = line.strip()
+        if s_line and not s_line.startswith("#") and "=" in s_line:
+            k = s_line.split("=", 1)[0].strip()
+            if k in env_vars:
+                lines[i] = f"{k}={env_vars[k]}\n"
+                keys_written.add(k)
+                
+    # Append new keys
+    for k, v in env_vars.items():
+        if k not in keys_written:
+            lines.append(f"{k}={v}\n")
+            
+    with open(ENV_PATH, "w") as f:
+        f.writelines(lines)
+
+@app.get("/api/settings")
+async def get_settings(_=Depends(require_auth)):
+    return read_env()
+
+@app.post("/api/settings")
+async def save_settings(request: Request, _=Depends(require_auth)):
+    data = await request.json()
+    write_env(data)
+    return {"status": "ok"}
+
+@app.get("/api/users")
+async def get_users(_=Depends(require_auth)):
+    rdb = await get_redis()
+    users = await rdb.hgetall("dashboard_users")
+    # Return list of usernames, plus the root admin
+    user_list = [{"username": DASHBOARD_USER, "role": "admin"}]
+    for u in users.keys():
+        user_list.append({"username": u, "role": "analyst"})
+    return user_list
+
+@app.post("/api/users")
+async def add_user(request: Request, _=Depends(require_auth)):
+    data = await request.json()
+    username = data.get("username")
+    password = data.get("password")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Missing username or password")
+    if username == DASHBOARD_USER:
+        raise HTTPException(status_code=400, detail="Cannot overwrite root admin")
+    rdb = await get_redis()
+    await rdb.hset("dashboard_users", username, password)
+    return {"status": "ok"}
+
+@app.delete("/api/users/{username}")
+async def delete_user(username: str, _=Depends(require_auth)):
+    if username == DASHBOARD_USER:
+        raise HTTPException(status_code=400, detail="Cannot delete root admin")
+    rdb = await get_redis()
+    await rdb.hdel("dashboard_users", username)
+    return {"status": "ok"}
 
 # ── Serve HTML
 @app.get("/{path:path}", response_class=HTMLResponse)
