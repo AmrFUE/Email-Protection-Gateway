@@ -95,6 +95,7 @@ services:
       PORT: 8003
     volumes:
       - ./EPG/shared:/app/shared:ro
+      - ./EPG/malware-scanner/.env:/app/.env:ro
     restart: always
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8003/health" ]

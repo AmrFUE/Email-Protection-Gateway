@@ -22,6 +22,7 @@ import os
 import time
 from email import message_from_bytes
 from typing import AsyncGenerator, Optional
+import urllib.request
 
 import redis.asyncio as aioredis
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Request
@@ -400,6 +401,14 @@ async def save_settings(request: Request, _=Depends(require_auth)):
     api_updates = {k: v for k, v in data.items() if k in API_KEY_FIELDS}
     if api_updates:
         write_env_file(api_updates)
+        # Notify the malware-scanner to reload its config without restarting the container
+        try:
+            req = urllib.request.Request("http://malware-scanner:8003/reload", method="POST")
+            with urllib.request.urlopen(req, timeout=3) as response:
+                logger.info(f"Notified malware-scanner to reload. Response: {response.status}")
+        except Exception as e:
+            logger.error(f"Failed to notify malware-scanner of config reload: {e}")
+            
     logger.info(f"Settings saved: {list(data.keys())}")
     return {"status": "ok"}
 
