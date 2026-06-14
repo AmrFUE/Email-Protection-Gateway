@@ -89,6 +89,8 @@ services:
     build: ./EPG/malware-scanner
     container_name: epg-malware
     networks: [ epg-net ]
+    env_file:
+      - ./EPG/malware-scanner/.env
     environment:
       PORT: 8003
     volumes:
@@ -151,6 +153,7 @@ services:
     volumes:
       - mailbox_data:/data/mailbox
       - quarantine_data:/data/quarantine:ro
+      - ./EPG/malware-scanner:/data/epg-config
     restart: always
 
   # ──────────────────────────────────────────────────────────

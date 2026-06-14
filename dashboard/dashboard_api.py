@@ -320,6 +320,51 @@ async def block_email(email_id: str, _=Depends(require_auth)):
 
 # ── Settings & User Management
 SETTINGS_REDIS_KEY = "epg_settings"
+EPG_ENV_PATH = os.environ.get("EPG_ENV_PATH", "/data/epg-config/.env")
+
+# API key field names that map to the .env file
+API_KEY_FIELDS = ["OTX_API_KEY", "MALWAREBAZAAR_API_KEY", "URLHAUS_API_KEY", "ANYRUN_API_KEY"]
+
+def read_env_file():
+    """Read the mounted .env file from the malware-scanner config."""
+    env_vars = {}
+    path = EPG_ENV_PATH
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    env_vars[key.strip()] = val.strip()
+    return env_vars
+
+def write_env_file(env_vars):
+    """Write API keys back to the mounted .env file."""
+    path = EPG_ENV_PATH
+    lines = []
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            lines = f.readlines()
+
+    keys_written = set()
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in s:
+            k = s.split("=", 1)[0].strip()
+            if k in env_vars:
+                lines[i] = f"{k}={env_vars[k]}\n"
+                keys_written.add(k)
+
+    for k, v in env_vars.items():
+        if k not in keys_written:
+            lines.append(f"{k}={v}\n")
+
+    try:
+        with open(path, "w") as f:
+            f.writelines(lines)
+        logger.info(f"Wrote .env file: {path}")
+    except Exception as e:
+        logger.error(f"Failed to write .env file: {e}")
 
 @app.get("/api/settings")
 async def get_settings(_=Depends(require_auth)):
@@ -327,8 +372,9 @@ async def get_settings(_=Depends(require_auth)):
     raw = await rdb.get(SETTINGS_REDIS_KEY)
     if raw:
         return json.loads(raw)
-    # Return defaults if nothing saved yet
-    return {
+    # First load: try reading from the mounted .env file
+    file_settings = read_env_file()
+    defaults = {
         "OTX_API_KEY": "",
         "MALWAREBAZAAR_API_KEY": "",
         "URLHAUS_API_KEY": "",
@@ -338,16 +384,22 @@ async def get_settings(_=Depends(require_auth)):
         "REDIS_PORT": "6379",
         "MALWARE_PROJECT_PATH": ""
     }
+    defaults.update(file_settings)
+    return defaults
 
 @app.post("/api/settings")
 async def save_settings(request: Request, _=Depends(require_auth)):
     data = await request.json()
     rdb = await get_redis()
-    # Merge with existing settings
+    # Merge with existing settings in Redis
     raw = await rdb.get(SETTINGS_REDIS_KEY)
     existing = json.loads(raw) if raw else {}
     existing.update(data)
     await rdb.set(SETTINGS_REDIS_KEY, json.dumps(existing))
+    # Also write API keys to the mounted .env file
+    api_updates = {k: v for k, v in data.items() if k in API_KEY_FIELDS}
+    if api_updates:
+        write_env_file(api_updates)
     logger.info(f"Settings saved: {list(data.keys())}")
     return {"status": "ok"}
 

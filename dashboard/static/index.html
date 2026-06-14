@@ -247,7 +247,7 @@ tbody td{padding:12px 16px;font-size:.8rem}
   <div class="sidebar">
     <div class="sidebar-logo">
       <h2>🛡️ EPG Dashboard</h2>
-      <p>Security Operations</p>
+      <p id="sidebar-user" style="font-size:.75rem;color:var(--muted)">Security Operations</p>
     </div>
     <nav>
       <a class="active" onclick="showPage('overview')" id="nav-overview">
@@ -467,6 +467,10 @@ async function doLogin() {
   fd.append('username', u); fd.append('password', p);
   const r = await fetch('/login', {method:'POST', body:fd});
   if (r.ok) {
+    const data = await r.json();
+    localStorage.setItem('epg_user', u);
+    localStorage.setItem('epg_role', data.role || 'analyst');
+    document.getElementById('sidebar-user').textContent = `Logged in as ${u} (${data.role})`;
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     init();
@@ -478,12 +482,20 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  localStorage.removeItem('epg_user');
+  localStorage.removeItem('epg_role');
   await fetch('/logout');
   location.reload();
 }
 
 // ── INIT ──────────────────────────────────────────────
 function init() {
+  // Restore username display if returning from cookie-based session
+  const savedUser = localStorage.getItem('epg_user');
+  const savedRole = localStorage.getItem('epg_role');
+  if (savedUser) {
+    document.getElementById('sidebar-user').textContent = `Logged in as ${savedUser} (${savedRole || 'analyst'})`;
+  }
   loadStats();
   loadRecentLogs();
   startSSE();
