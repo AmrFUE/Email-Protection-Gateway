@@ -3,6 +3,9 @@ import uvicorn
 import logging
 import io
 
+# Ensure root logger is at INFO so our capture handler sees all messages
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+
 def _make_log_capture():
     buf = io.StringIO()
     handler = logging.StreamHandler(buf)
