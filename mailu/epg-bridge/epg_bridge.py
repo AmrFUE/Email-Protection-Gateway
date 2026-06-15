@@ -35,6 +35,15 @@ def get_redis() -> redis.Redis:
 
 
 class EPGBridgeHandler:
+    async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
+        # Prevent open relaying: only accept emails meant for our own domain
+        if not address.lower().endswith(f"@{LOCAL_DOMAIN.lower()}"):
+            logger.warning(f"Rejected relay attempt from {session.peer} to {address}")
+            return f"550 Relaying denied to {address}"
+        
+        envelope.rcpt_tos.append(address)
+        return "250 OK"
+
     async def handle_DATA(self, server, session, envelope) -> str:
         message_id = str(uuid.uuid4())
         sender = envelope.mail_from or "unknown"
