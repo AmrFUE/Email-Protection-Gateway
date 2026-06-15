@@ -480,10 +480,9 @@ async def scan(file: UploadFile = File(...)):
             tmp.write(content)
             tmp_path = tmp.name
 
-        logger.info(f"Scanning: {file.filename} ({len(content)} bytes)")
-
         buf = io.StringIO()
         token = request_log_buffer.set(buf)
+        logger.info(f"Scanning: {file.filename} ({len(content)} bytes)")
         msg, raw_email = load_email(tmp_path)
         verdict, score, note, details = compute_verdict(msg, raw_email)
 
