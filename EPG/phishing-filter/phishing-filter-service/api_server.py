@@ -1,5 +1,21 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 import uvicorn
+import logging
+import contextvars
+import io
+
+request_log_buffer = contextvars.ContextVar('request_log_buffer', default=None)
+
+class ContextLogHandler(logging.Handler):
+    def emit(self, record):
+        buf = request_log_buffer.get()
+        if buf is not None:
+            buf.write(self.format(record) + "\n")
+
+ctx_handler = ContextLogHandler()
+ctx_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+logging.getLogger().addHandler(ctx_handler)
+
 import tempfile
 import os
 from contextlib import asynccontextmanager
@@ -76,6 +92,8 @@ async def scan_eml(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a standard email (.eml) file.")
     
     temp_file_path = None
+    buf = io.StringIO()
+    token = request_log_buffer.set(buf)
     try:
         # Create a secure temporary file to write raw upload contents
         with tempfile.NamedTemporaryFile(delete=False, suffix=".eml") as temp_file:
@@ -122,13 +140,18 @@ async def scan_eml(file: UploadFile = File(...)):
             "verdict": verdict,
             "score": score,
             "note": note,
-            "details": details
+            "details": details,
+            "logs": buf.getvalue()
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Phishing scan failed: {str(e)}")
         
     finally:
+        try:
+            request_log_buffer.reset(token)
+        except NameError:
+            pass
         # Securely clean up the temp file
         if temp_file_path and os.path.exists(temp_file_path):
             try:
