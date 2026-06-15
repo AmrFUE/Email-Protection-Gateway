@@ -20,8 +20,9 @@ import json
 import logging
 import os
 import time
-from email import message_from_bytes
-from typing import AsyncGenerator, Optional
+from datetime import datetime
+from email import message_from_bytes, policy
+from typing import AsyncGenerator, List, Optional
 import urllib.request
 
 import redis.asyncio as aioredis
@@ -176,10 +177,28 @@ async def get_logs(
     page:   int = 1,
     limit:  int = 50,
     filter: str = "all",
+    search: Optional[str] = None,
+    verdict: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     _=Depends(require_auth),
 ):
     rdb     = await get_redis()
     all_raw = await rdb.lrange("scan_log_list", 0, -1)
+
+    # Parse date bounds once
+    dt_from = None
+    dt_to = None
+    if date_from:
+        try:
+            dt_from = datetime.fromisoformat(date_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt_to = datetime.fromisoformat(date_to)
+        except ValueError:
+            pass
 
     logs = []
     for raw in all_raw:
@@ -202,6 +221,38 @@ async def get_logs(
             if filter == "suspicious" and not is_suspicious(e):   continue
             if filter == "spam"       and action != "TAGGED":     continue
             if filter == "clean"      and action != "DELIVERED":  continue
+
+            # Verdict filter
+            if verdict and e.get("final_verdict", "").upper() != verdict.upper():
+                continue
+
+            # Date range filter
+            if dt_from or dt_to:
+                ts = e.get("timestamp", "")
+                try:
+                    entry_dt = datetime.fromisoformat(ts)
+                    if dt_from and entry_dt < dt_from:
+                        continue
+                    if dt_to and entry_dt > dt_to:
+                        continue
+                except (ValueError, TypeError):
+                    continue
+
+            # Search filter (case-insensitive across from, to, subject)
+            if search:
+                s = search.lower()
+                from_email = e.get("from_email", "").lower()
+                to_email = e.get("to_email", "").lower()
+                subj = ""
+                malware_s = stages.get("malware", {})
+                spam_s = stages.get("spam", {})
+                if malware_s.get("email", {}).get("subject"):
+                    subj = malware_s["email"]["subject"].lower()
+                elif spam_s.get("details", {}).get("subject"):
+                    subj = spam_s["details"]["subject"].lower()
+                if s not in from_email and s not in to_email and s not in subj:
+                    continue
+
             logs.append(e)
         except Exception:
             pass
@@ -488,6 +539,241 @@ async def delete_user(username: str, _=Depends(require_admin)):
     await rdb.hdel("dashboard_users", username)
     logger.info(f"User deleted: {username}")
     return {"status": "ok"}
+
+
+# ── Quarantine Management
+def _extract_subject(entry: dict) -> str:
+    """Extract email subject from scan log stages."""
+    stages = entry.get("stages", {})
+    malware_s = stages.get("malware", {})
+    spam_s = stages.get("spam", {})
+    subj = malware_s.get("email", {}).get("subject", "")
+    if not subj:
+        subj = spam_s.get("details", {}).get("subject", "")
+    return subj or "(no subject)"
+
+
+def _extract_score(entry: dict) -> Optional[float]:
+    """Extract a threat score from stages if available."""
+    stages = entry.get("stages", {})
+    spam_s = stages.get("spam", {})
+    score = spam_s.get("details", {}).get("score")
+    if score is not None:
+        return score
+    malware_s = stages.get("malware", {})
+    score = malware_s.get("score")
+    return score
+
+
+def _find_eml_path(email_id: str) -> Optional[str]:
+    """Locate a .eml file in /data/quarantine by email_id."""
+    base_dir = "/data/quarantine"
+    if os.path.exists(base_dir):
+        for root, _, files in os.walk(base_dir):
+            if f"{email_id}.eml" in files:
+                return os.path.join(root, f"{email_id}.eml")
+    return None
+
+
+@app.get("/api/quarantine")
+async def list_quarantine(
+    page: int = 1,
+    limit: int = 20,
+    category: str = "all",
+    _=Depends(require_auth),
+):
+    """List quarantined / tagged / blocked emails with optional category filter."""
+    rdb = await get_redis()
+    all_raw = await rdb.lrange("scan_log_list", 0, -1)
+
+    QUARANTINE_ACTIONS = {"QUARANTINED", "TAGGED", "BLOCKED"}
+    CATEGORY_MAP = {
+        "spam":       "SPAM",
+        "phishing":   "PHISHING",
+        "malware":    "MALICIOUS",
+        "suspicious": "SUSPICIOUS",
+    }
+
+    items = []
+    for raw in all_raw:
+        try:
+            e = json.loads(raw)
+            action = e.get("action", "DELIVERED")
+            if action not in QUARANTINE_ACTIONS:
+                continue
+
+            verdict = e.get("final_verdict", "CLEAN").upper()
+            if category != "all":
+                expected = CATEGORY_MAP.get(category)
+                if expected and verdict != expected:
+                    continue
+
+            items.append({
+                "email_id":      e.get("email_id", ""),
+                "timestamp":     e.get("timestamp", ""),
+                "from_email":    e.get("from_email", ""),
+                "to_email":      e.get("to_email", ""),
+                "subject":       _extract_subject(e),
+                "final_verdict": e.get("final_verdict", "CLEAN"),
+                "action":        action,
+                "scan_time":     e.get("scan_time", 0),
+                "score":         _extract_score(e),
+            })
+        except Exception:
+            pass
+
+    total = len(items)
+    start = (page - 1) * limit
+    return {"total": total, "page": page, "limit": limit,
+            "items": items[start: start + limit]}
+
+
+@app.delete("/api/quarantine/{email_id}")
+async def delete_quarantine_email(email_id: str, _=Depends(require_auth)):
+    """Delete a quarantined email's .eml file and remove its Redis log entry."""
+    # Delete the .eml file
+    eml_path = _find_eml_path(email_id)
+    if eml_path:
+        try:
+            os.remove(eml_path)
+            logger.info(f"Deleted quarantine file: {eml_path}")
+        except OSError as exc:
+            logger.error(f"Failed to delete {eml_path}: {exc}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete file: {exc}")
+
+    # Remove matching entry from Redis scan_log_list
+    rdb = await get_redis()
+    all_raw = await rdb.lrange("scan_log_list", 0, -1)
+    removed = False
+    for raw in all_raw:
+        try:
+            e = json.loads(raw)
+            if e.get("email_id") == email_id:
+                await rdb.lrem("scan_log_list", 1, raw)
+                removed = True
+                break
+        except Exception:
+            pass
+
+    # Also remove the individual detail key
+    await rdb.delete(f"scan_log:{email_id}")
+
+    if not eml_path and not removed:
+        raise HTTPException(status_code=404, detail="Email not found in quarantine")
+
+    logger.info(f"Quarantine entry deleted: {email_id}")
+    return {"status": "ok", "message": f"Quarantined email {email_id} deleted successfully"}
+
+
+@app.get("/api/quarantine/preview/{email_id}")
+async def preview_quarantine_email(email_id: str, _=Depends(require_auth)):
+    """Parse and return the email headers and body for preview."""
+    eml_path = _find_eml_path(email_id)
+    if not eml_path:
+        raise HTTPException(status_code=404, detail="Email file not found in quarantine")
+
+    with open(eml_path, "rb") as f:
+        msg = message_from_bytes(f.read(), policy=policy.default)
+
+    # Extract headers
+    headers = {}
+    for key in msg.keys():
+        headers[key] = msg[key]
+
+    # Extract body parts
+    body_text = ""
+    body_html = ""
+    if msg.is_multipart():
+        for part in msg.walk():
+            ct = part.get_content_type()
+            if ct == "text/plain" and not body_text:
+                body_text = part.get_content()
+            elif ct == "text/html" and not body_html:
+                body_html = part.get_content()
+    else:
+        ct = msg.get_content_type()
+        content = msg.get_content()
+        if ct == "text/html":
+            body_html = content
+        else:
+            body_text = content
+
+    return {
+        "email_id":  email_id,
+        "subject":   msg.get("Subject", ""),
+        "from":      msg.get("From", ""),
+        "to":        msg.get("To", ""),
+        "date":      msg.get("Date", ""),
+        "body_text": body_text or "",
+        "body_html": body_html or "",
+        "headers":   headers,
+    }
+
+
+@app.post("/api/quarantine/bulk")
+async def bulk_quarantine_action(request: Request, _=Depends(require_auth)):
+    """Perform release or delete on multiple quarantined emails."""
+    data = await request.json()
+    action = data.get("action")
+    email_ids = data.get("email_ids", [])
+
+    if action not in ("release", "delete"):
+        raise HTTPException(status_code=400, detail="action must be 'release' or 'delete'")
+    if not email_ids or not isinstance(email_ids, list):
+        raise HTTPException(status_code=400, detail="email_ids must be a non-empty list")
+
+    processed = 0
+    errors = []
+
+    for eid in email_ids:
+        try:
+            if action == "delete":
+                # Inline delete logic
+                eml_path = _find_eml_path(eid)
+                if eml_path:
+                    os.remove(eml_path)
+                rdb = await get_redis()
+                all_raw = await rdb.lrange("scan_log_list", 0, -1)
+                for raw in all_raw:
+                    try:
+                        e = json.loads(raw)
+                        if e.get("email_id") == eid:
+                            await rdb.lrem("scan_log_list", 1, raw)
+                            break
+                    except Exception:
+                        pass
+                await rdb.delete(f"scan_log:{eid}")
+                processed += 1
+            elif action == "release":
+                # Delegate to the existing release endpoint logic
+                eml_path = _find_eml_path(eid)
+                if not eml_path:
+                    errors.append({"email_id": eid, "error": "File not found"})
+                    continue
+                with open(eml_path, "rb") as f:
+                    content = f.read()
+                import imaplib
+                IMAP_HOST = os.environ.get("MAILU_HOST", "mailserver")
+                IMAP_PORT_NUM = int(os.environ.get("IMAP_PORT", 993))
+                IMAP_USER_ADDR = os.environ.get("IMAP_USER", "admin@jawabi.app")
+                IMAP_PASS_VAL = os.environ.get("IMAP_PASS", "admin123")
+                imap = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT_NUM)
+                imap.login(IMAP_USER_ADDR, IMAP_PASS_VAL)
+                typ, _ = imap.append(
+                    "INBOX", None,
+                    imaplib.Time2Internaldate(time.time()),
+                    content,
+                )
+                imap.logout()
+                if typ == "OK":
+                    processed += 1
+                else:
+                    errors.append({"email_id": eid, "error": "IMAP APPEND failed"})
+        except Exception as exc:
+            errors.append({"email_id": eid, "error": str(exc)})
+
+    return {"status": "ok", "processed": processed, "errors": errors}
+
 
 # ── Serve HTML
 @app.get("/{path:path}", response_class=HTMLResponse)

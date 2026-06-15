@@ -225,6 +225,92 @@ tbody td{padding:12px 16px;font-size:.8rem}
 .modal-tabs button.active{color:var(--blue);border-bottom-color:var(--blue)}
 .modal-tab-content{display:none}
 .modal-tab-content.active{display:block}
+
+/* ── SCAN LOGS PAGE ── */
+.scan-filters{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.scan-filters .filter-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+.scan-filters .filter-group label{font-size:.7rem;color:var(--muted);font-weight:500;letter-spacing:.05em;text-transform:uppercase}
+.scan-filters .filter-group input,.scan-filters .filter-group select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:.8rem;font-family:'Inter',sans-serif;outline:none}
+.scan-filters .filter-group input:focus,.scan-filters .filter-group select:focus{border-color:var(--accent)}
+.scan-filters .filter-actions{display:flex;gap:8px;align-items:flex-end}
+.btn-filter{padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-filter:hover{background:#388bfd}
+.btn-reset{padding:8px 16px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:.8rem;cursor:pointer;transition:all .2s}
+.btn-reset:hover{border-color:var(--text);color:var(--text)}
+.btn-export{padding:8px 16px;background:transparent;border:1px solid var(--green);color:var(--green);border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-export:hover{background:var(--green);color:#fff}
+.scan-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:1100px){.scan-stats{grid-template-columns:repeat(3,1fr)}}
+.scan-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px}
+.scan-stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.scan-stat-icon.total{background:#1f6feb22}
+.scan-stat-icon.clean-icon{background:#3fb95022}
+.scan-stat-icon.spam-icon{background:#d2992222}
+.scan-stat-icon.phish-icon{background:#f8514922}
+.scan-stat-icon.malware-icon{background:#bc8cff22}
+.scan-stat-icon.suspicious-icon{background:#e3b34122}
+.scan-stat-info .scan-stat-value{font-size:1.3rem;font-weight:700;line-height:1}
+.scan-stat-info .scan-stat-label{font-size:.7rem;color:var(--muted);margin-top:2px}
+.scan-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.scan-table-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.scan-table-head h3{font-size:.85rem;font-weight:600}
+.auto-refresh{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted)}
+.auto-refresh-toggle{width:36px;height:20px;background:var(--surface2);border-radius:100px;position:relative;cursor:pointer;border:1px solid var(--border);transition:background .2s}
+.auto-refresh-toggle.on{background:var(--accent);border-color:var(--accent)}
+.auto-refresh-toggle::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:var(--muted);top:2px;left:2px;transition:all .2s}
+.auto-refresh-toggle.on::after{transform:translateX(16px);background:#fff}
+.scan-table{width:100%;border-collapse:collapse}
+.scan-table thead th{padding:10px 16px;text-align:left;font-size:.7rem;color:var(--muted);font-weight:500;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+.scan-table thead th.sortable{cursor:pointer}
+.scan-table thead th.sortable:hover{color:var(--text)}
+.scan-table tbody tr{border-bottom:1px solid #21262d;transition:background .1s;cursor:pointer}
+.scan-table tbody tr:hover{background:var(--surface2)}
+.scan-table tbody td{padding:10px 16px;font-size:.78rem;white-space:nowrap}
+.scan-table tbody td.subject-col{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.verdict-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:.68rem;font-weight:700;letter-spacing:.03em}
+.verdict-pill.spam{background:#d2992233;color:#e3b341}
+.verdict-pill.phishing{background:#f8514933;color:#f85149}
+.verdict-pill.malicious{background:#bc8cff33;color:#bc8cff}
+.verdict-pill.clean{background:#3fb95022;color:#3fb950}
+.verdict-pill.suspicious{background:#e3b34122;color:#e3b341}
+.action-pill{display:inline-flex;padding:3px 10px;border-radius:100px;font-size:.68rem;font-weight:600}
+.action-pill.blocked{background:#f8514922;color:#f85149}
+.action-pill.quarantined{background:#d2992222;color:#d29922}
+.action-pill.delivered{background:#3fb95022;color:#3fb950}
+.action-pill.tagged{background:#e3b34122;color:#e3b341}
+.scan-details-btn{padding:4px 12px;background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:6px;font-size:.7rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+.scan-details-btn:hover{background:var(--accent);color:#fff}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-top:1px solid var(--border)}
+.pagination-info{font-size:.78rem;color:var(--muted)}
+.pagination-btns{display:flex;gap:4px}
+.pagination-btns button{min-width:32px;height:32px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;font-size:.75rem;cursor:pointer;transition:all .15s}
+.pagination-btns button:hover{border-color:var(--text);color:var(--text)}
+.pagination-btns button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.pagination-btns button:disabled{opacity:.3;cursor:not-allowed}
+
+/* ── QUARANTINE PAGE ── */
+.quarantine-tabs{display:flex;gap:4px;margin-bottom:20px}
+.quarantine-tabs button{padding:8px 20px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s}
+.quarantine-tabs button:hover{border-color:var(--text);color:var(--text)}
+.quarantine-tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.quarantine-actions{display:flex;gap:8px;margin-bottom:16px}
+.quarantine-actions button{padding:6px 16px;border-radius:6px;font-size:.78rem;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-release-sel{background:transparent;border:1px solid var(--green);color:var(--green)}
+.btn-release-sel:hover{background:var(--green);color:#fff}
+.btn-delete-sel{background:transparent;border:1px solid var(--red);color:var(--red)}
+.btn-delete-sel:hover{background:var(--red);color:#fff}
+.q-check{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.preview-modal{position:fixed;inset:0;background:#00000088;backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100}
+.preview-modal.open{display:flex}
+.preview-content{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:700px;max-width:95vw;max-height:85vh;overflow-y:auto}
+.preview-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.preview-head h2{font-size:1rem;font-weight:600}
+.preview-body{padding:24px}
+.preview-field{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.83rem}
+.preview-field .field-label{color:var(--muted);min-width:80px;flex-shrink:0;font-weight:500}
+.preview-field .field-value{word-break:break-all}
+.preview-email-body{margin-top:16px;background:var(--surface2);border-radius:8px;padding:16px;font-size:.82rem;line-height:1.6;max-height:300px;overflow-y:auto;white-space:pre-wrap}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -271,6 +357,11 @@ tbody td{padding:12px 16px;font-size:.8rem}
         <span class="icon">📁</span>Spam</a>
       <a onclick="showPage('logs','clean')" id="nav-clean">
         <span class="icon">✅</span>Clean</a>
+      <div style="height:1px;background:var(--border);margin:12px 8px"></div>
+      <a onclick="showPage('scanlogs')" id="nav-scanlogs">
+        <span class="icon">🔍</span>Scan Logs</a>
+      <a onclick="showPage('quarantine')" id="nav-quarantine">
+        <span class="icon">🔒</span>Quarantine</a>
     </nav>
     <div class="sidebar-footer" style="display:flex;flex-direction:column;gap:12px;">
       <a onclick="showPage('settings')" id="nav-settings" style="display:flex;align-items:center;gap:10px;color:var(--muted);text-decoration:none;font-size:.875rem;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
@@ -358,6 +449,143 @@ tbody td{padding:12px 16px;font-size:.8rem}
             </tr></thead>
             <tbody id="logs-tbody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- SCAN LOGS PAGE -->
+      <div class="page" id="page-scanlogs">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;font-weight:700">Scan Logs</h2>
+            <p style="font-size:.8rem;color:var(--muted)">View and analyze all scanned emails and their results</p>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div class="auto-refresh">
+              <span>Auto refresh</span>
+              <div class="auto-refresh-toggle on" id="sl-auto-refresh" onclick="toggleSLAutoRefresh(this)"></div>
+            </div>
+            <button class="btn-export" onclick="exportCSV()">↓ Export CSV</button>
+          </div>
+        </div>
+
+        <div class="scan-filters">
+          <div class="filter-group">
+            <label>Date Range</label>
+            <input type="date" id="sl-date-from">
+          </div>
+          <div class="filter-group">
+            <label>To</label>
+            <input type="date" id="sl-date-to">
+          </div>
+          <div class="filter-group">
+            <label>Verdict</label>
+            <select id="sl-verdict">
+              <option value="">All</option>
+              <option value="CLEAN">Clean</option>
+              <option value="SPAM">Spam</option>
+              <option value="PHISHING">Phishing</option>
+              <option value="MALICIOUS">Malicious</option>
+              <option value="SUSPICIOUS">Suspicious</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Action Taken</label>
+            <select id="sl-action">
+              <option value="">All</option>
+              <option value="DELIVERED">Delivered</option>
+              <option value="BLOCKED">Blocked</option>
+              <option value="QUARANTINED">Quarantined</option>
+              <option value="TAGGED">Tagged</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Sender Domain</label>
+            <input type="text" id="sl-domain" placeholder="e.g. example.com">
+          </div>
+          <div class="filter-group">
+            <label>Search</label>
+            <input type="text" id="sl-search" placeholder="Sender, Recipient, Subject...">
+          </div>
+          <div class="filter-actions">
+            <button class="btn-filter" onclick="applyScanLogFilters()">🔍 Filter</button>
+            <button class="btn-reset" onclick="resetScanLogFilters()">↺ Reset</button>
+          </div>
+        </div>
+
+        <div class="scan-stats" id="sl-stats">
+          <div class="scan-stat"><div class="scan-stat-icon total">📧</div><div class="scan-stat-info"><div class="scan-stat-value" id="sl-s-total">–</div><div class="scan-stat-label">Total Scanned</div></div></div>
+          <div class="scan-stat"><div class="scan-stat-icon clean-icon">✅</div><div class="scan-stat-info"><div class="scan-stat-value" id="sl-s-clean">–</div><div class="scan-stat-label">Clean</div></div></div>
+          <div class="scan-stat"><div class="scan-stat-icon spam-icon">📁</div><div class="scan-stat-info"><div class="scan-stat-value" id="sl-s-spam">–</div><div class="scan-stat-label">Spam</div></div></div>
+          <div class="scan-stat"><div class="scan-stat-icon phish-icon">🎣</div><div class="scan-stat-info"><div class="scan-stat-value" id="sl-s-phishing">–</div><div class="scan-stat-label">Phishing</div></div></div>
+          <div class="scan-stat"><div class="scan-stat-icon malware-icon">☠️</div><div class="scan-stat-info"><div class="scan-stat-value" id="sl-s-malware">–</div><div class="scan-stat-label">Malicious</div></div></div>
+          <div class="scan-stat"><div class="scan-stat-icon suspicious-icon">⚠️</div><div class="scan-stat-info"><div class="scan-stat-value" id="sl-s-suspicious">–</div><div class="scan-stat-label">Suspicious</div></div></div>
+        </div>
+
+        <div class="scan-table-wrap">
+          <table class="scan-table">
+            <thead><tr>
+              <th class="sortable" onclick="sortScanLogs('timestamp')">Timestamp ↕</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Subject</th>
+              <th class="sortable" onclick="sortScanLogs('verdict')">Final Verdict ↕</th>
+              <th class="sortable" onclick="sortScanLogs('score')">Score</th>
+              <th>Triggered Layer</th>
+              <th>Action Taken</th>
+              <th>Scan Time (s)</th>
+              <th>Details</th>
+            </tr></thead>
+            <tbody id="sl-tbody"></tbody>
+          </table>
+          <div class="pagination" id="sl-pagination">
+            <div class="pagination-info" id="sl-page-info">Showing 0 results</div>
+            <div class="pagination-btns" id="sl-page-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUARANTINE PAGE -->
+      <div class="page" id="page-quarantine">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;font-weight:700">Quarantine</h2>
+            <p style="font-size:.8rem;color:var(--muted)">Manage quarantined emails — release, delete, or preview</p>
+          </div>
+        </div>
+
+        <div class="quarantine-tabs">
+          <button class="active" onclick="loadQuarantine('all',this)">All</button>
+          <button onclick="loadQuarantine('spam',this)">Spam</button>
+          <button onclick="loadQuarantine('phishing',this)">Phishing</button>
+          <button onclick="loadQuarantine('malware',this)">Malware</button>
+          <button onclick="loadQuarantine('suspicious',this)">Suspicious</button>
+        </div>
+
+        <div class="quarantine-actions">
+          <button class="btn-release-sel" onclick="bulkQuarantineAction('release')">✅ Release Selected</button>
+          <button class="btn-delete-sel" onclick="bulkQuarantineAction('delete')">🗑️ Delete Selected</button>
+          <span style="font-size:.75rem;color:var(--muted);display:flex;align-items:center" id="q-sel-count">0 selected</span>
+        </div>
+
+        <div class="scan-table-wrap">
+          <table class="scan-table">
+            <thead><tr>
+              <th style="width:40px"><input type="checkbox" class="q-check" id="q-check-all" onchange="toggleAllQuarantine(this)"></th>
+              <th>Timestamp</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Subject</th>
+              <th>Category</th>
+              <th>Score</th>
+              <th>Action</th>
+              <th style="text-align:right">Actions</th>
+            </tr></thead>
+            <tbody id="q-tbody"></tbody>
+          </table>
+          <div class="pagination" id="q-pagination">
+            <div class="pagination-info" id="q-page-info">Showing 0 results</div>
+            <div class="pagination-btns" id="q-page-btns"></div>
+          </div>
         </div>
       </div>
 
@@ -463,6 +691,17 @@ tbody td{padding:12px 16px;font-size:.8rem}
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- QUARANTINE PREVIEW MODAL -->
+<div class="preview-modal" id="preview-modal">
+  <div class="preview-content">
+    <div class="preview-head">
+      <h2>📧 Email Preview</h2>
+      <button class="modal-close" onclick="closePreview()">✕</button>
+    </div>
+    <div class="preview-body" id="preview-body"></div>
   </div>
 </div>
 
@@ -941,6 +1180,16 @@ function showPage(name, filter) {
   } else if (name === 'logs') {
     document.getElementById('page-title').textContent = 'Email Logs';
     loadLogs(filter || 'all');
+  } else if (name === 'scanlogs') {
+    document.getElementById('page-title').textContent = 'Scan Logs';
+    const navEl = document.getElementById('nav-scanlogs');
+    if (navEl) navEl.classList.add('active');
+    loadScanLogs(1);
+  } else if (name === 'quarantine') {
+    document.getElementById('page-title').textContent = 'Quarantine';
+    const navEl = document.getElementById('nav-quarantine');
+    if (navEl) navEl.classList.add('active');
+    loadQuarantine('all');
   } else {
     const navEl = document.getElementById(`nav-${name}`);
     if (navEl) navEl.classList.add('active');
@@ -1132,6 +1381,368 @@ function showToast(msg, isError) {
   setTimeout(() => toast.classList.add('show'), 10);
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
+
+// ── SCAN LOGS ─────────────────────────────────────────
+let slPage = 1;
+let slLimit = 10;
+let slSort = 'timestamp';
+let slSortDir = 'desc';
+let slAutoRefresh = true;
+let slInterval = null;
+let slAllData = [];
+
+async function loadScanLogs(page) {
+  slPage = page || 1;
+  const data = await fetchJSON('/api/logs?limit=9999&page=1&filter=all');
+  if (!data) return;
+  slAllData = data.logs || [];
+
+  // Load stats
+  const stats = await fetchJSON('/api/stats');
+  if (stats) {
+    document.getElementById('sl-s-total').textContent = stats.total;
+    document.getElementById('sl-s-clean').textContent = stats.clean;
+    document.getElementById('sl-s-spam').textContent = stats.spam_tagged || 0;
+    document.getElementById('sl-s-phishing').textContent = stats.threats?.phishing || 0;
+    document.getElementById('sl-s-malware').textContent = stats.threats?.malware || 0;
+    document.getElementById('sl-s-suspicious').textContent = stats.suspicious;
+  }
+
+  let filtered = applyLocalFilters(slAllData);
+  sortData(filtered);
+  renderScanLogsTable(filtered);
+}
+
+function applyLocalFilters(logs) {
+  let out = [...logs];
+  const dateFrom = document.getElementById('sl-date-from')?.value;
+  const dateTo = document.getElementById('sl-date-to')?.value;
+  const verdict = document.getElementById('sl-verdict')?.value;
+  const action = document.getElementById('sl-action')?.value;
+  const domain = document.getElementById('sl-domain')?.value?.toLowerCase();
+  const search = document.getElementById('sl-search')?.value?.toLowerCase();
+
+  if (dateFrom) out = out.filter(e => new Date(e.timestamp) >= new Date(dateFrom));
+  if (dateTo) out = out.filter(e => new Date(e.timestamp) <= new Date(dateTo + 'T23:59:59'));
+  if (verdict) out = out.filter(e => (e.final_verdict || 'CLEAN') === verdict);
+  if (action) out = out.filter(e => (e.action || 'DELIVERED') === action);
+  if (domain) out = out.filter(e => (e.from_email || '').toLowerCase().includes(domain));
+  if (search) {
+    out = out.filter(e => {
+      const subj = extractSubject(e).toLowerCase();
+      const from = (e.from_email || '').toLowerCase();
+      const to = (Array.isArray(e.to_email) ? e.to_email.join(',') : e.to_email || '').toLowerCase();
+      return from.includes(search) || to.includes(search) || subj.includes(search);
+    });
+  }
+  return out;
+}
+
+function extractSubject(e) {
+  if (e.stages?.malware?.email?.subject) return e.stages.malware.email.subject;
+  if (e.stages?.spam?.details?.subject) return e.stages.spam.details.subject;
+  return '–';
+}
+
+function getTriggeredLayer(e) {
+  const v = e.final_verdict || 'CLEAN';
+  if (v === 'MALICIOUS') return 'Malware Scanner';
+  if (v === 'PHISHING') return 'Phishing Filter';
+  if (v === 'SPAM') return 'Spam Filter';
+  if (v === 'SUSPICIOUS') return 'Dynamic Analysis';
+  return 'All Layers';
+}
+
+function getScore(e) {
+  if (e.stages?.spam?.details?.score != null) return e.stages.spam.details.score;
+  if (e.stages?.phishing?.score != null) return Math.round(e.stages.phishing.score * 100);
+  if (e.stages?.malware?.overall_score != null) return e.stages.malware.overall_score;
+  return '–';
+}
+
+function sortData(arr) {
+  arr.sort((a, b) => {
+    let va, vb;
+    if (slSort === 'timestamp') { va = a.timestamp || ''; vb = b.timestamp || ''; }
+    else if (slSort === 'verdict') { va = a.final_verdict || ''; vb = b.final_verdict || ''; }
+    else if (slSort === 'score') { va = getScore(a); vb = getScore(b); va = isNaN(va)?-999:va; vb = isNaN(vb)?-999:vb; }
+    else { va = a.timestamp || ''; vb = b.timestamp || ''; }
+    if (va < vb) return slSortDir === 'asc' ? -1 : 1;
+    if (va > vb) return slSortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+function sortScanLogs(col) {
+  if (slSort === col) slSortDir = slSortDir === 'asc' ? 'desc' : 'asc';
+  else { slSort = col; slSortDir = 'desc'; }
+  let filtered = applyLocalFilters(slAllData);
+  sortData(filtered);
+  renderScanLogsTable(filtered);
+}
+
+function renderScanLogsTable(data) {
+  const total = data.length;
+  const start = (slPage - 1) * slLimit;
+  const end = Math.min(start + slLimit, total);
+  const page = data.slice(start, end);
+  const totalPages = Math.ceil(total / slLimit) || 1;
+
+  const tbody = document.getElementById('sl-tbody');
+  tbody.innerHTML = page.map(e => {
+    const ts = new Date(e.timestamp).toLocaleString();
+    const from = e.from_email || '–';
+    const to = Array.isArray(e.to_email) ? e.to_email.join(', ') : e.to_email || '–';
+    const subject = extractSubject(e);
+    const verdict = (e.final_verdict || 'CLEAN');
+    const verdictCls = verdict.toLowerCase();
+    const score = getScore(e);
+    const layer = getTriggeredLayer(e);
+    const action = e.action || 'DELIVERED';
+    const actionCls = action.toLowerCase();
+    const scanTime = e.scan_time ? e.scan_time.toFixed(2) : '–';
+    return `<tr onclick="openDetail('${e.email_id}')">
+      <td>${ts}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${from}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${to}</td>
+      <td class="subject-col" title="${subject.replace(/"/g,'&quot;')}">${subject}</td>
+      <td><span class="verdict-pill ${verdictCls}">${verdict === 'SPAM' ? '🔶 ' : verdict === 'PHISHING' ? '🎣 ' : verdict === 'MALICIOUS' ? '☠️ ' : verdict === 'CLEAN' ? '✅ ' : '⚠️ '}${verdict}</span></td>
+      <td style="font-weight:600">${score}</td>
+      <td style="font-size:.72rem;color:var(--muted)">${layer}</td>
+      <td><span class="action-pill ${actionCls}">${action}</span></td>
+      <td style="color:var(--muted)">${scanTime}</td>
+      <td><button class="scan-details-btn" onclick="event.stopPropagation();openDetail('${e.email_id}')">👁 View Details</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('sl-page-info').textContent = `Showing ${start+1} to ${end} of ${total} results`;
+
+  // Pagination buttons
+  let btnsHTML = `<button ${slPage<=1?'disabled':''} onclick="loadScanLogsPage(${slPage-1})">‹</button>`;
+  const maxBtns = 5;
+  let startP = Math.max(1, slPage - Math.floor(maxBtns/2));
+  let endP = Math.min(totalPages, startP + maxBtns - 1);
+  if (endP - startP < maxBtns - 1) startP = Math.max(1, endP - maxBtns + 1);
+  if (startP > 1) btnsHTML += `<button onclick="loadScanLogsPage(1)">1</button>`;
+  if (startP > 2) btnsHTML += `<button disabled>…</button>`;
+  for (let i = startP; i <= endP; i++) {
+    btnsHTML += `<button class="${i===slPage?'active':''}" onclick="loadScanLogsPage(${i})">${i}</button>`;
+  }
+  if (endP < totalPages - 1) btnsHTML += `<button disabled>…</button>`;
+  if (endP < totalPages) btnsHTML += `<button onclick="loadScanLogsPage(${totalPages})">${totalPages}</button>`;
+  btnsHTML += `<button ${slPage>=totalPages?'disabled':''} onclick="loadScanLogsPage(${slPage+1})">›</button>`;
+  document.getElementById('sl-page-btns').innerHTML = btnsHTML;
+}
+
+function loadScanLogsPage(p) {
+  slPage = p;
+  let filtered = applyLocalFilters(slAllData);
+  sortData(filtered);
+  renderScanLogsTable(filtered);
+}
+
+function applyScanLogFilters() {
+  slPage = 1;
+  let filtered = applyLocalFilters(slAllData);
+  sortData(filtered);
+  renderScanLogsTable(filtered);
+}
+
+function resetScanLogFilters() {
+  document.getElementById('sl-date-from').value = '';
+  document.getElementById('sl-date-to').value = '';
+  document.getElementById('sl-verdict').value = '';
+  document.getElementById('sl-action').value = '';
+  document.getElementById('sl-domain').value = '';
+  document.getElementById('sl-search').value = '';
+  slPage = 1;
+  loadScanLogs(1);
+}
+
+function toggleSLAutoRefresh(el) {
+  slAutoRefresh = !slAutoRefresh;
+  el.classList.toggle('on', slAutoRefresh);
+  if (slAutoRefresh) {
+    slInterval = setInterval(() => loadScanLogs(slPage), 15000);
+  } else {
+    clearInterval(slInterval);
+  }
+}
+
+function exportCSV() {
+  let filtered = applyLocalFilters(slAllData);
+  let csv = 'Timestamp,From,To,Subject,Verdict,Score,Triggered Layer,Action,Scan Time\n';
+  filtered.forEach(e => {
+    const ts = new Date(e.timestamp).toLocaleString();
+    const from = (e.from_email||'').replace(/,/g,';');
+    const to = (Array.isArray(e.to_email)?e.to_email.join(';'):e.to_email||'').replace(/,/g,';');
+    const subj = extractSubject(e).replace(/,/g,' ').replace(/"/g,'');
+    csv += `"${ts}","${from}","${to}","${subj}",${e.final_verdict||'CLEAN'},${getScore(e)},"${getTriggeredLayer(e)}",${e.action||'DELIVERED'},${e.scan_time?e.scan_time.toFixed(2):''}\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'scan_logs.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── QUARANTINE ────────────────────────────────────────
+let qPage = 1;
+let qLimit = 10;
+let qCategory = 'all';
+let qAllData = [];
+
+async function loadQuarantine(category, btn) {
+  if (category) qCategory = category;
+  if (btn) {
+    document.querySelectorAll('.quarantine-tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  qPage = 1;
+  const data = await fetchJSON('/api/logs?limit=9999&page=1&filter=all');
+  if (!data) return;
+  // Filter for quarantined/blocked/tagged
+  qAllData = (data.logs || []).filter(e => ['QUARANTINED','BLOCKED','TAGGED'].includes(e.action));
+  if (qCategory !== 'all') {
+    qAllData = qAllData.filter(e => (e.final_verdict||'').toUpperCase() === qCategory.toUpperCase());
+  }
+  renderQuarantineTable();
+}
+
+function renderQuarantineTable() {
+  const total = qAllData.length;
+  const start = (qPage - 1) * qLimit;
+  const end = Math.min(start + qLimit, total);
+  const page = qAllData.slice(start, end);
+  const totalPages = Math.ceil(total / qLimit) || 1;
+
+  const tbody = document.getElementById('q-tbody');
+  tbody.innerHTML = page.map(e => {
+    const ts = new Date(e.timestamp).toLocaleString();
+    const from = e.from_email || '–';
+    const to = Array.isArray(e.to_email) ? e.to_email.join(', ') : e.to_email || '–';
+    const subject = extractSubject(e);
+    const verdict = (e.final_verdict || 'CLEAN');
+    const verdictCls = verdict.toLowerCase();
+    const score = getScore(e);
+    const action = e.action || 'DELIVERED';
+    return `<tr style="animation:fadeIn .3s">
+      <td><input type="checkbox" class="q-check q-item-check" data-id="${e.email_id}" onchange="updateQSelCount()"></td>
+      <td>${ts}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${from}">${from}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${to}</td>
+      <td class="subject-col" title="${subject.replace(/"/g,'&quot;')}">${subject}</td>
+      <td><span class="verdict-pill ${verdictCls}">${verdict}</span></td>
+      <td style="font-weight:600">${score}</td>
+      <td><span class="action-pill ${action.toLowerCase()}">${action}</span></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="scan-details-btn" style="margin-right:4px" onclick="previewEmail('${e.email_id}')">👁 Preview</button>
+        <button class="scan-details-btn" style="border-color:var(--green);color:var(--green);margin-right:4px" onclick="releaseFromQ('${e.email_id}')">✅ Release</button>
+        <button class="scan-details-btn" style="border-color:var(--red);color:var(--red)" onclick="deleteFromQ('${e.email_id}')">🗑️ Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('q-page-info').textContent = `Showing ${total?start+1:0} to ${end} of ${total} results`;
+  let btnsHTML = `<button ${qPage<=1?'disabled':''} onclick="qGoPage(${qPage-1})">‹</button>`;
+  const maxBtns = 5;
+  let startP = Math.max(1, qPage - Math.floor(maxBtns/2));
+  let endP = Math.min(totalPages, startP + maxBtns - 1);
+  for (let i = startP; i <= endP; i++) {
+    btnsHTML += `<button class="${i===qPage?'active':''}" onclick="qGoPage(${i})">${i}</button>`;
+  }
+  btnsHTML += `<button ${qPage>=totalPages?'disabled':''} onclick="qGoPage(${qPage+1})">›</button>`;
+  document.getElementById('q-page-btns').innerHTML = btnsHTML;
+  updateQSelCount();
+}
+
+function qGoPage(p) { qPage = p; renderQuarantineTable(); }
+
+function toggleAllQuarantine(el) {
+  document.querySelectorAll('.q-item-check').forEach(c => c.checked = el.checked);
+  updateQSelCount();
+}
+
+function updateQSelCount() {
+  const n = document.querySelectorAll('.q-item-check:checked').length;
+  document.getElementById('q-sel-count').textContent = `${n} selected`;
+}
+
+function getSelectedQIds() {
+  return [...document.querySelectorAll('.q-item-check:checked')].map(c => c.dataset.id);
+}
+
+async function releaseFromQ(id) {
+  if (!confirm('Release this email to the inbox?')) return;
+  const res = await fetch(`/api/action/release/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (res.ok && data.status === 'ok') {
+    showToast(data.message);
+    loadQuarantine();
+  } else {
+    showToast(data.message || data.detail || 'Failed', true);
+  }
+}
+
+async function deleteFromQ(id) {
+  if (!confirm('Permanently delete this email?')) return;
+  const res = await fetch(`/api/quarantine/delete/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (res.ok && data.status === 'ok') {
+    showToast(data.message || 'Deleted');
+    loadQuarantine();
+  } else {
+    showToast(data.message || data.detail || 'Failed', true);
+  }
+}
+
+async function bulkQuarantineAction(action) {
+  const ids = getSelectedQIds();
+  if (!ids.length) { showToast('No emails selected', true); return; }
+  if (!confirm(`${action === 'release' ? 'Release' : 'Delete'} ${ids.length} email(s)?`)) return;
+  const res = await fetch('/api/quarantine/bulk', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action, email_ids: ids})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showToast(`${action === 'release' ? 'Released' : 'Deleted'} ${data.processed} email(s)`);
+    document.getElementById('q-check-all').checked = false;
+    loadQuarantine();
+  } else {
+    showToast('Bulk action failed', true);
+  }
+}
+
+async function previewEmail(id) {
+  const e = await fetchJSON(`/api/logs/${id}`);
+  if (!e) return;
+  const subject = extractSubject(e);
+  const body = e.stages?.spam?.details?.body_text || e.stages?.malware?.email?.body || 'No body available';
+  document.getElementById('preview-body').innerHTML = `
+    <div class="preview-field"><span class="field-label">From</span><span class="field-value">${e.from_email||'–'}</span></div>
+    <div class="preview-field"><span class="field-label">To</span><span class="field-value">${Array.isArray(e.to_email)?e.to_email.join(', '):e.to_email||'–'}</span></div>
+    <div class="preview-field"><span class="field-label">Subject</span><span class="field-value">${subject}</span></div>
+    <div class="preview-field"><span class="field-label">Date</span><span class="field-value">${new Date(e.timestamp).toLocaleString()}</span></div>
+    <div class="preview-field"><span class="field-label">Verdict</span><span class="field-value"><span class="verdict-pill ${(e.final_verdict||'clean').toLowerCase()}">${e.final_verdict||'CLEAN'}</span></span></div>
+    <div class="preview-field"><span class="field-label">Action</span><span class="field-value"><span class="action-pill ${(e.action||'delivered').toLowerCase()}">${e.action||'DELIVERED'}</span></span></div>
+    <div style="margin-top:16px;font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Email Body</div>
+    <div class="preview-email-body">${body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <a href="/api/download/${e.email_id}" target="_blank" class="scan-details-btn" style="text-decoration:none;text-align:center">📥 Download .eml</a>
+      <button class="scan-details-btn" style="border-color:var(--green);color:var(--green)" onclick="closePreview();releaseFromQ('${e.email_id}')">✅ Release</button>
+      <button class="scan-details-btn" style="border-color:var(--red);color:var(--red)" onclick="closePreview();deleteFromQ('${e.email_id}')">🗑️ Delete</button>
+    </div>
+  `;
+  document.getElementById('preview-modal').classList.add('open');
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('open');
+}
+document.getElementById('preview-modal')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePreview();
+});
 
 // ── DEEP LINK ─────────────────────────────────────────
 if (window.location.pathname.includes('/settings')) {
