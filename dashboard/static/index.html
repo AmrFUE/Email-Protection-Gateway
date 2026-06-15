@@ -733,13 +733,13 @@ async function openDetail(id) {
     </div>
     
     <div id="tab-malware" class="modal-tab-content">
-      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;max-height:700px;overflow-y:auto;">${eClean.stages?.malware?.logs || 'No logs captured.'}</pre>
+      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.malware?.logs || 'No logs captured.'}</pre>
     </div>
     <div id="tab-phishing" class="modal-tab-content">
-      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;max-height:700px;overflow-y:auto;">${eClean.stages?.phishing?.logs || 'No logs captured.'}</pre>
+      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.phishing?.logs || 'No logs captured.'}</pre>
     </div>
     <div id="tab-spam" class="modal-tab-content">
-      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;max-height:700px;overflow-y:auto;">${eClean.stages?.spam?.logs || 'No logs captured.'}</pre>
+      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.spam?.logs || 'No logs captured.'}</pre>
     </div>
     <div id="tab-dynamic" class="modal-tab-content">
       <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(eClean.stages?.dynamic || {}, null, 2)}</pre>
