@@ -188,7 +188,9 @@ class EPGBridgeHandler:
         try:
             logger.info(f"SMTP RELAY to internet: {recipients} via {MAILU_HOST}:{RELAY_PORT}")
             with smtplib.SMTP(MAILU_HOST, RELAY_PORT, timeout=30) as smtp:
-                smtp.sendmail(sender, recipients, content_bytes)
+                # Use a null envelope sender ('') to bypass Poste.io's "No MX for your FROM address"
+                # check, which otherwise rejects internal domains without public DNS records.
+                smtp.sendmail('', recipients, content_bytes)
             logger.info(f"SMTP RELAY delivered to {recipients}")
             return True, ""
         except Exception as e:
