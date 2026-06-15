@@ -488,12 +488,13 @@ async function doLogin() {
     document.getElementById('app').style.display = 'flex';
     
     // RBAC: Hide sensitive tabs for non-admins
-    if (data.role !== 'admin') {
-      document.querySelector('[onclick="showPage(\'settings\')"]').style.display = 'none';
-      document.querySelector('[onclick="showPage(\'users\')"]').style.display = 'none';
-    } else {
-      document.querySelector('[onclick="showPage(\'settings\')"]').style.display = 'block';
-      document.querySelector('[onclick="showPage(\'users\')"]').style.display = 'block';
+    const navSettings = document.getElementById('nav-settings');
+    if (navSettings) {
+      if (data.role !== 'admin') {
+        navSettings.style.display = 'none';
+      } else {
+        navSettings.style.display = 'flex';
+      }
     }
     
     init();
@@ -521,12 +522,13 @@ function init() {
   }
   
   // RBAC: Hide sensitive tabs for non-admins on reload
-  if (savedRole !== 'admin') {
-    document.querySelector('[onclick="showPage(\'settings\')"]').style.display = 'none';
-    document.querySelector('[onclick="showPage(\'users\')"]').style.display = 'none';
-  } else {
-    document.querySelector('[onclick="showPage(\'settings\')"]').style.display = 'block';
-    document.querySelector('[onclick="showPage(\'users\')"]').style.display = 'block';
+  const navSettings = document.getElementById('nav-settings');
+  if (navSettings) {
+    if (savedRole !== 'admin') {
+      navSettings.style.display = 'none';
+    } else {
+      navSettings.style.display = 'flex';
+    }
   }
 
   loadStats();
