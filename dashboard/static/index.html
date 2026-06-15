@@ -216,6 +216,15 @@ tbody td{padding:12px 16px;font-size:.8rem}
   opacity:0;transform:translateY(20px);transition:all .3s;z-index:200;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.error{background:var(--red)}
+
+/* Modal Tabs */
+.modal-tabs{display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.modal-tabs button{background:none;border:none;color:var(--muted);font-size:.85rem;font-weight:600;
+  padding:8px 4px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.modal-tabs button:hover{color:var(--text)}
+.modal-tabs button.active{color:var(--blue);border-bottom-color:var(--blue)}
+.modal-tab-content{display:none}
+.modal-tab-content.active{display:block}
 </style>
 </head>
 <body>
@@ -698,19 +707,58 @@ async function openDetail(id) {
         </button>
       ` : ''}
     </div>
-    <div style="margin-top:20px;font-size:.8rem;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase">Stage Results</div>
-    ${stagesHTML}
-    <div style="margin-top:20px;">
-      <details style="background:var(--surface2);border-radius:8px;padding:10px;cursor:pointer;margin-bottom:10px;">
-        <summary style="font-size:.8rem;font-weight:600;color:var(--blue);outline:none;">🔬 Model Analysis (Human-Readable)</summary>
-        <div style="margin-top:12px;">${buildModelAnalysis(e.stages||{})}</div>
-      </details>
-      <details style="background:var(--surface2);border-radius:8px;padding:10px;cursor:pointer;">
-        <summary style="font-size:.8rem;font-weight:600;color:var(--muted);outline:none;">View Raw JSON Details</summary>
-        <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;">${JSON.stringify(eClean, null, 2)}</pre>
-      </details>
-    </div>`;
+    
+    <!-- TABS NAVIGATION -->
+    <div class="modal-tabs" style="margin-top:20px;">
+      <button class="active" onclick="switchModalTab('overview', this)">Overview</button>
+      ${eClean.stages?.malware ? `<button onclick="switchModalTab('malware', this)">Malware JSON</button>` : ''}
+      ${eClean.stages?.phishing ? `<button onclick="switchModalTab('phishing', this)">Phishing JSON</button>` : ''}
+      ${eClean.stages?.spam ? `<button onclick="switchModalTab('spam', this)">Spam JSON</button>` : ''}
+      ${eClean.stages?.dynamic ? `<button onclick="switchModalTab('dynamic', this)">Dynamic JSON</button>` : ''}
+      <button onclick="switchModalTab('raw', this)">Full JSON</button>
+    </div>
+
+    <!-- TAB CONTENTS -->
+    <div id="tab-overview" class="modal-tab-content active">
+      <div style="font-size:.8rem;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase">Stage Results</div>
+      ${stagesHTML}
+      <div style="margin-top:20px;">
+        <details style="background:var(--surface2);border-radius:8px;padding:10px;cursor:pointer;margin-bottom:10px;">
+          <summary style="font-size:.8rem;font-weight:600;color:var(--blue);outline:none;">🔬 Model Analysis (Human-Readable)</summary>
+          <div style="margin-top:12px;">${buildModelAnalysis(e.stages||{})}</div>
+        </details>
+      </div>
+    </div>
+    
+    <div id="tab-malware" class="modal-tab-content">
+      <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(eClean.stages?.malware || {}, null, 2)}</pre>
+    </div>
+    <div id="tab-phishing" class="modal-tab-content">
+      <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(eClean.stages?.phishing || {}, null, 2)}</pre>
+    </div>
+    <div id="tab-spam" class="modal-tab-content">
+      <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(eClean.stages?.spam || {}, null, 2)}</pre>
+    </div>
+    <div id="tab-dynamic" class="modal-tab-content">
+      <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(eClean.stages?.dynamic || {}, null, 2)}</pre>
+    </div>
+    <div id="tab-raw" class="modal-tab-content">
+      <pre style="margin-top:10px;font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(eClean, null, 2)}</pre>
+    </div>
+  `;
   document.getElementById('modal').classList.add('open');
+}
+
+function switchModalTab(tabId, btn) {
+  // Update buttons
+  const tabs = btn.parentElement.querySelectorAll('button');
+  tabs.forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  
+  // Update content
+  const contents = document.querySelectorAll('.modal-tab-content');
+  contents.forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
 }
 
 function bar(pct, color) {
