@@ -477,9 +477,11 @@ async def scan(file: UploadFile = File(...)):
         buf, _log_handler = _make_log_capture()
         logging.getLogger().setLevel(logging.INFO)
         logging.getLogger().addHandler(_log_handler)
-        logger.info(f"Scanning: {file.filename} ({len(content)} bytes)")
+        logger.info(f"Spam Scanner: Processing {file.filename} ({len(content)} bytes)")
         msg, raw_email = load_email(tmp_path)
+        logger.info("Email parsed — running spam verdict computation...")
         verdict, score, note, details = compute_verdict(msg, raw_email)
+        logger.info(f"Final Spam Verdict: {verdict} — Score: {score} — Note: {note}")
 
         return {"verdict": verdict, "score": score, "note": note, "details": details, "logs": buf.getvalue()}
 

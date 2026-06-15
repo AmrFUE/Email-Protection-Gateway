@@ -25,6 +25,8 @@ from src.engines.nlp_analyzer import NLPAnalyzer
 from src.engines.aggregator import HybridRiskAggregator
 from src.config import LEGITIMATE_BRANDS, DOMAIN_EXCEL
 
+logger = logging.getLogger("phishing-filter")
+
 # Global analyzer/aggregator instances
 header_analyzer = None
 url_analyzer = None
@@ -104,19 +106,33 @@ async def scan_eml(file: UploadFile = File(...)):
         with open(temp_file_path, "r", encoding="utf-8", errors="ignore") as f:
             raw_email_str = f.read()
 
-        logger.info(f"Phishing Scanner: Processing {filename}")
+        logger.info(f"Phishing Scanner: Processing {filename} ({len(contents)} bytes)")
         # Parse EML contents using advanced parser
         email_data = EmailParser.parse_from_string(raw_email_str)
 
-        logger.info(f"Analyzed {len(email_data.get('urls', []))} URLs and headers.")
+        urls = email_data.get('urls', [])
+        logger.info(f"Parsed email — found {len(urls)} URLs")
+        if urls:
+            for u in urls[:5]:
+                logger.info(f"  URL: {u.get('href', '?')}")
+        
         # Run pipeline analyzers
+        logger.info("[1/3] Running Header Analysis...")
         h_res = header_analyzer.analyze(email_data)
+        logger.info(f"  Header score: {h_res['score']}")
+        
+        logger.info("[2/3] Running URL Analysis...")
         u_res = url_analyzer.analyze(email_data)
+        logger.info(f"  URL score: {u_res['score']}")
+        
+        logger.info("[3/3] Running NLP Analysis...")
         n_res = nlp_analyzer.analyze(email_data)
+        logger.info(f"  NLP phishing probability: {n_res['phishing_probability']:.4f}")
 
         # Run risk aggregator
+        logger.info("Aggregating results...")
         agg_res = aggregator.aggregate(h_res, u_res, n_res)
-        logger.info(f"Final Phishing Verdict: {agg_res['verdict']} with score {agg_res['risk_score']}")
+        logger.info(f"Final Phishing Verdict: {agg_res['verdict']} — Risk Score: {agg_res['risk_score']} — Confidence: {agg_res['confidence']}")
 
         # Structure response strictly according to the format
         verdict = agg_res["verdict"]  # "PHISHING" or "CLEAN"
