@@ -324,7 +324,7 @@ SETTINGS_REDIS_KEY = "epg_settings"
 EPG_ENV_PATH = os.environ.get("EPG_ENV_PATH", "/data/epg-config/.env")
 
 # API key field names that map to the .env file
-API_KEY_FIELDS = ["OTX_API_KEY", "MALWAREBAZAAR_API_KEY", "URLHAUS_API_KEY", "ANYRUN_API_KEY"]
+API_KEY_FIELDS = ["OTX_API_KEY", "MALWAREBAZAAR_API_KEY", "URLHAUS_API_KEY", "VT_API_KEY", "ANYRUN_API_KEY"]
 
 def read_env_file():
     """Read the mounted .env file from the malware-scanner config."""
@@ -379,6 +379,7 @@ async def get_settings(_=Depends(require_auth)):
         "OTX_API_KEY": "",
         "MALWAREBAZAAR_API_KEY": "",
         "URLHAUS_API_KEY": "",
+        "VT_API_KEY": "",
         "ANYRUN_API_KEY": "",
         "ENABLE_DYNAMIC": "false",
         "REDIS_HOST": "redis",
@@ -401,13 +402,20 @@ async def save_settings(request: Request, _=Depends(require_auth)):
     api_updates = {k: v for k, v in data.items() if k in API_KEY_FIELDS}
     if api_updates:
         write_env_file(api_updates)
-        # Notify the malware-scanner to reload its config without restarting the container
+        # Notify the malware-scanner and spam-filter to reload their configs without restarting
         try:
-            req = urllib.request.Request("http://malware-scanner:8003/reload", method="POST")
-            with urllib.request.urlopen(req, timeout=3) as response:
+            req1 = urllib.request.Request("http://malware-scanner:8003/reload", method="POST")
+            with urllib.request.urlopen(req1, timeout=3) as response:
                 logger.info(f"Notified malware-scanner to reload. Response: {response.status}")
         except Exception as e:
             logger.error(f"Failed to notify malware-scanner of config reload: {e}")
+            
+        try:
+            req2 = urllib.request.Request("http://spam-filter:8001/reload", method="POST")
+            with urllib.request.urlopen(req2, timeout=3) as response:
+                logger.info(f"Notified spam-filter to reload. Response: {response.status}")
+        except Exception as e:
+            logger.error(f"Failed to notify spam-filter of config reload: {e}")
             
     logger.info(f"Settings saved: {list(data.keys())}")
     return {"status": "ok"}

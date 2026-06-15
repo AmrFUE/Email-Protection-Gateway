@@ -44,6 +44,19 @@ VT_API_KEY = os.environ.get(
     "92cb93aac4f76c34acbe4b38b2b8610b5ee5533782796dbaa5ef3392e4c5e499",
 )
 
+def reload_api_keys():
+    global VT_API_KEY
+    env_path = "/app/.env"
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    if key.strip() == "VT_API_KEY":
+                        VT_API_KEY = val.strip()
+                        break
+
 
 # ── Text Preprocessing ──
 
@@ -433,6 +446,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.post("/reload")
+def reload_config():
+    """Reload API keys from the mounted .env file"""
+    reload_api_keys()
+    return {"status": "ok", "message": "API keys reloaded"}
 
 
 @app.post("/scan")

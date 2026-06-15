@@ -67,6 +67,10 @@ services:
     build: ./EPG/spam-filter/Spam
     container_name: epg-spam
     networks: [ epg-net ]
+    env_file:
+      - ./EPG/config/.env
+    volumes:
+      - ./EPG/config/.env:/app/.env:ro
     restart: always
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
@@ -78,6 +82,8 @@ services:
     build: ./EPG/phishing-filter/phishing-filter-service
     container_name: epg-phishing
     networks: [ epg-net ]
+    env_file:
+      - ./EPG/config/.env
     restart: always
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
@@ -90,12 +96,12 @@ services:
     container_name: epg-malware
     networks: [ epg-net ]
     env_file:
-      - ./EPG/malware-scanner/.env
+      - ./EPG/config/.env
     environment:
       PORT: 8003
     volumes:
       - ./EPG/shared:/app/shared:ro
-      - ./EPG/malware-scanner/.env:/app/.env:ro
+      - ./EPG/config/.env:/app/.env:ro
     restart: always
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8003/health" ]
@@ -154,7 +160,7 @@ services:
     volumes:
       - mailbox_data:/data/mailbox
       - quarantine_data:/data/quarantine:ro
-      - ./EPG/malware-scanner:/data/epg-config
+      - ./EPG/config:/data/epg-config
     restart: always
 
   # ──────────────────────────────────────────────────────────
