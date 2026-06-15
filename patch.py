@@ -1,102 +1,55 @@
-import re
+import sys
 
-with open("EPG/malware-scanner/api_server.py", "r") as f:
+with open("d:/New_EGPInAzure/EGPInAzure/mailu/epg-bridge/epg_bridge.py", "r") as f:
     content = f.read()
 
-# 1. Add imports and handler
-imports = """import uvicorn
-import contextvars
-import io
+# Replace 1
+old1 = """        logger.info(f"[{message_id[:8]}] Forwarding to Mail Server ({action})")
+        folder  = "Junk" if action in ["TAGGED", "SUSPICIOUS_SPAM"] else "INBOX"
+        success = self._deliver(sender, recipients, content_to_save, folder)
+        return "250 Message delivered" if success else "451 Temporary failure forwarding to backend\""""
+new1 = """        logger.info(f"[{message_id[:8]}] Forwarding to Mail Server ({action})")
+        folder  = "Junk" if action in ["TAGGED", "SUSPICIOUS_SPAM"] else "INBOX"
+        success, err_msg = self._deliver(sender, recipients, content_to_save, folder)
+        return "250 Message delivered" if success else f"451 Temporary failure forwarding to backend: {err_msg}\""""
+content = content.replace(old1, new1)
 
-request_log_buffer = contextvars.ContextVar('request_log_buffer', default=None)
+# Replace 2
+old2 = """                msg.add_header("X-Spam-Flag", "YES")
+                content_bytes = msg.as_bytes()
+            except Exception as e:
+                logger.error(f"Failed to add spam flag: {e}")
+                
+        return self._relay_via_smtp(sender, recipients, content_bytes)
 
-class ContextLogHandler(logging.Handler):
-    def emit(self, record):
-        buf = request_log_buffer.get()
-        if buf is not None:
-            buf.write(self.format(record) + "\\n")
+    def _relay_via_smtp(self, sender, recipients, content_bytes):"""
+new2 = """                msg.add_header("X-Spam-Flag", "YES")
+                content_bytes = msg.as_bytes()
+            except Exception as e:
+                logger.error(f"Failed to add spam flag: {e}")
+                
+        return self._relay_via_smtp(sender, recipients, content_bytes)
 
-# Attach to root logger so it captures unified_scanner logs too
-ctx_handler = ContextLogHandler()
-ctx_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-logging.getLogger().addHandler(ctx_handler)
-"""
-content = content.replace("import uvicorn", imports)
+    def _relay_via_smtp(self, sender, recipients, content_bytes):"""
+content = content.replace(old2, new2)
 
-# 2. Modify scan_file
-content = content.replace('        logger.info(f"Scanning: {file.filename} ({len(content):,} bytes)")', 
-'''        logger.info(f"Scanning: {file.filename} ({len(content):,} bytes)")
+# Replace 3
+old3 = """            with smtplib.SMTP(MAILU_HOST, RELAY_PORT, timeout=30) as smtp:
+                smtp.sendmail(sender, recipients, content_bytes)
+            logger.info(f"SMTP RELAY delivered to {recipients}")
+            return True
+        except Exception as e:
+            logger.error(f"SMTP RELAY failed for {recipients}: {e}")
+            return False"""
+new3 = """            with smtplib.SMTP(MAILU_HOST, RELAY_PORT, timeout=30) as smtp:
+                smtp.sendmail(sender, recipients, content_bytes)
+            logger.info(f"SMTP RELAY delivered to {recipients}")
+            return True, ""
+        except Exception as e:
+            logger.error(f"SMTP RELAY failed for {recipients}: {e}")
+            return False, str(e)"""
+content = content.replace(old3, new3)
 
-        buf = io.StringIO()
-        token = request_log_buffer.set(buf)''')
-
-content = content.replace('''            "threat_intel": {
-                "threat_level": result.get("threat_intel", {}).get("threat_level", "clean"),
-                "threat_score": result.get("threat_intel", {}).get("threat_score", 0),
-                "detections": result.get("threat_intel", {}).get("detections", []),
-                "hash": result.get("threat_intel", {}).get("hashes", {}).get("sha256", ""),
-            },
-        }''', '''            "threat_intel": {
-                "threat_level": result.get("threat_intel", {}).get("threat_level", "clean"),
-                "threat_score": result.get("threat_intel", {}).get("threat_score", 0),
-                "detections": result.get("threat_intel", {}).get("detections", []),
-                "hash": result.get("threat_intel", {}).get("hashes", {}).get("sha256", ""),
-            },
-            "logs": buf.getvalue()
-        }
-        finally:
-            request_log_buffer.reset(token)''')
-
-
-# 3. Modify scan_eml
-content = content.replace('    try:\n        with open(eml_path, \'wb\') as f:',
-'''    buf = io.StringIO()
-    token = request_log_buffer.set(buf)
-    try:
-        with open(eml_path, 'wb') as f:''', 1)
-
-content = content.replace('''        return {
-            "email": email_metadata,
-            "headers": {
-                "from": headers['from'],
-                "to": headers['to'],
-                "subject": headers['subject'],
-                "spf_pass": headers['spf_pass'],
-                "dkim_pass": headers['dkim_pass'],
-                "dmarc_pass": headers['dmarc_pass'],
-                "hop_count": headers['hop_count'],
-            },
-            "attachments": results,
-            "urls": urls,
-            "has_attachments": len(results) > 0,
-            "has_urls": len(urls) > 0,
-            "overall_verdict": worst_verdict,
-            "overall_score": worst_score,
-            "total_attachments": len(results),
-            "total_urls": len(urls),
-        }''', '''        return {
-            "email": email_metadata,
-            "headers": {
-                "from": headers['from'],
-                "to": headers['to'],
-                "subject": headers['subject'],
-                "spf_pass": headers['spf_pass'],
-                "dkim_pass": headers['dkim_pass'],
-                "dmarc_pass": headers['dmarc_pass'],
-                "hop_count": headers['hop_count'],
-            },
-            "attachments": results,
-            "urls": urls,
-            "has_attachments": len(results) > 0,
-            "has_urls": len(urls) > 0,
-            "overall_verdict": worst_verdict,
-            "overall_score": worst_score,
-            "total_attachments": len(results),
-            "total_urls": len(urls),
-            "logs": buf.getvalue()
-        }''')
-
-content = content.replace('    finally:\n        shutil.rmtree(tmp_dir, ignore_errors=True)', '    finally:\n        request_log_buffer.reset(token)\n        shutil.rmtree(tmp_dir, ignore_errors=True)')
-
-with open("EPG/malware-scanner/api_server.py", "w") as f:
+with open("d:/New_EGPInAzure/EGPInAzure/mailu/epg-bridge/epg_bridge.py", "w") as f:
     f.write(content)
+print("Done")

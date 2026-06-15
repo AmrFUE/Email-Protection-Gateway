@@ -152,8 +152,8 @@ class EPGBridgeHandler:
 
         logger.info(f"[{message_id[:8]}] Forwarding to Mail Server ({action})")
         folder  = "Junk" if action in ["TAGGED", "SUSPICIOUS_SPAM"] else "INBOX"
-        success = self._deliver(sender, recipients, content_to_save, folder)
-        return "250 Message delivered" if success else "451 Temporary failure forwarding to backend"
+        success, err_msg = self._deliver(sender, recipients, content_to_save, folder)
+        return "250 Message delivered" if success else f"451 Temporary failure forwarding to backend: {err_msg}"
 
     # ──────────────────────────────────────────────────────────────────────────
     # SMART ROUTER — local vs remote recipients
@@ -190,10 +190,10 @@ class EPGBridgeHandler:
             with smtplib.SMTP(MAILU_HOST, RELAY_PORT, timeout=30) as smtp:
                 smtp.sendmail(sender, recipients, content_bytes)
             logger.info(f"SMTP RELAY delivered to {recipients}")
-            return True
+            return True, ""
         except Exception as e:
             logger.error(f"SMTP RELAY failed for {recipients}: {e}")
-            return False
+            return False, str(e)
 
 
 async def main():
