@@ -475,6 +475,7 @@ async def scan(file: UploadFile = File(...)):
             tmp_path = tmp.name
 
         buf, _log_handler = _make_log_capture()
+        logging.getLogger().setLevel(logging.INFO)
         logging.getLogger().addHandler(_log_handler)
         logger.info(f"Scanning: {file.filename} ({len(content)} bytes)")
         msg, raw_email = load_email(tmp_path)

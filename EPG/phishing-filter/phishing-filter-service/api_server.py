@@ -90,7 +90,9 @@ async def scan_eml(file: UploadFile = File(...)):
     
     temp_file_path = None
     buf, _log_handler = _make_log_capture()
-    logging.getLogger().addHandler(_log_handler)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)   # force INFO - basicConfig is no-op after uvicorn sets up logging
+    root_logger.addHandler(_log_handler)
     try:
         # Create a secure temporary file to write raw upload contents
         with tempfile.NamedTemporaryFile(delete=False, suffix=".eml") as temp_file:
