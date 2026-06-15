@@ -164,50 +164,24 @@ class EPGBridgeHandler:
           • Local recipients  (@jawabi.app)  → IMAP APPEND (bypasses Haraka MX check)
           • Remote recipients (@gmail.com…)  → SMTP relay via Haraka port 25
         """
-        local_recipients  = [r for r in recipients if r.lower().endswith(f"@{LOCAL_DOMAIN}")]
-        remote_recipients = [r for r in recipients if not r.lower().endswith(f"@{LOCAL_DOMAIN}")]
-
-        success = True
-
-        # Local recipients: deliver directly via IMAP APPEND (no DNS/MX checks)
-        if local_recipients:
-            success &= self._forward_to_imap(sender, local_recipients, content_bytes, folder)
-
-        # Remote recipients: relay via Haraka SMTP for internet delivery
-        if remote_recipients:
-            success &= self._relay_via_smtp(sender, remote_recipients, content_bytes)
-            
-        return success
-
-    def _forward_to_imap(self, sender, recipients, content_bytes, folder="INBOX"):
-        """
-        Deliver email directly to Dovecot via IMAP APPEND.
-        Logs in as admin@jawabi.app and appends to the target folder.
-        """
-        success = False
-        for recipient in recipients:
+        # We cannot use IMAP APPEND with a single hardcoded admin account, 
+        # otherwise all local mail goes to the admin's inbox!
+        # Instead, we relay everything via SMTP. 
+        # To support routing to the Junk folder, we inject an X-Spam header.
+        
+        from email import message_from_bytes
+        
+        if folder == "Junk":
             try:
-                imap = imaplib.IMAP4_SSL(MAILU_HOST, IMAP_PORT)
-                imap.login(IMAP_USER, IMAP_PASS)
-
-                # Ensure the target folder exists (create Junk if needed)
-                if folder != "INBOX":
-                    imap.create(folder)
-
-                typ, data = imap.append(
-                    folder, None,
-                    imaplib.Time2Internaldate(time.time()),
-                    content_bytes
-                )
-                imap.logout()
-                if typ == 'OK':
-                    logger.info(f"IMAP APPEND delivered to {recipient} -> {folder}")
-                    success = True
-                else:
-                    logger.error(f"IMAP APPEND failed for {recipient}: {data}")
+                msg = message_from_bytes(content_bytes)
+                if not msg.get("X-Spam-Flag"):
+                    msg.add_header("X-Spam-Flag", "YES")
+                content_bytes = msg.as_bytes()
             except Exception as e:
-                logger.error(f"Failed IMAP delivery to {recipient}: {e}")
-        return success
+                logger.error(f"Failed to add spam flag: {e}")
+                
+        return self._relay_via_smtp(sender, recipients, content_bytes)
+
 
     def _relay_via_smtp(self, sender, recipients, content_bytes):
         """Relay email to external (internet) recipients via the mailserver's Haraka SMTP."""
