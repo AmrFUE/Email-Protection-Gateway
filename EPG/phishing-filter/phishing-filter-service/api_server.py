@@ -1,20 +1,14 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 import uvicorn
 import logging
-import contextvars
 import io
 
-request_log_buffer = contextvars.ContextVar('request_log_buffer', default=None)
-
-class ContextLogHandler(logging.Handler):
-    def emit(self, record):
-        buf = request_log_buffer.get()
-        if buf is not None:
-            buf.write(self.format(record) + "\n")
-
-ctx_handler = ContextLogHandler()
-ctx_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
-logging.getLogger().addHandler(ctx_handler)
+def _make_log_capture():
+    buf = io.StringIO()
+    handler = logging.StreamHandler(buf)
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+    handler.setLevel(logging.DEBUG)
+    return buf, handler
 
 import tempfile
 import os
@@ -92,8 +86,8 @@ async def scan_eml(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a standard email (.eml) file.")
     
     temp_file_path = None
-    buf = io.StringIO()
-    token = request_log_buffer.set(buf)
+    buf, _log_handler = _make_log_capture()
+    logging.getLogger().addHandler(_log_handler)
     try:
         # Create a secure temporary file to write raw upload contents
         with tempfile.NamedTemporaryFile(delete=False, suffix=".eml") as temp_file:
@@ -152,7 +146,7 @@ async def scan_eml(file: UploadFile = File(...)):
         
     finally:
         try:
-            request_log_buffer.reset(token)
+            logging.getLogger().removeHandler(_log_handler)
         except NameError:
             pass
         # Securely clean up the temp file

@@ -18,20 +18,14 @@ import nltk
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 import uvicorn
-import contextvars
 import io
 
-request_log_buffer = contextvars.ContextVar('request_log_buffer', default=None)
-
-class ContextLogHandler(logging.Handler):
-    def emit(self, record):
-        buf = request_log_buffer.get()
-        if buf is not None:
-            buf.write(self.format(record) + "\n")
-
-ctx_handler = ContextLogHandler()
-ctx_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
-logging.getLogger().addHandler(ctx_handler)
+def _make_log_capture():
+    buf = io.StringIO()
+    handler = logging.StreamHandler(buf)
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+    handler.setLevel(logging.DEBUG)
+    return buf, handler
 
 
 from body_spam_detector import extract_email_body, predict_body_spam
@@ -480,8 +474,8 @@ async def scan(file: UploadFile = File(...)):
             tmp.write(content)
             tmp_path = tmp.name
 
-        buf = io.StringIO()
-        token = request_log_buffer.set(buf)
+        buf, _log_handler = _make_log_capture()
+        logging.getLogger().addHandler(_log_handler)
         logger.info(f"Scanning: {file.filename} ({len(content)} bytes)")
         msg, raw_email = load_email(tmp_path)
         verdict, score, note, details = compute_verdict(msg, raw_email)
@@ -493,7 +487,7 @@ async def scan(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Scan error: {type(e).__name__}: {e}")
     finally:
         try:
-            request_log_buffer.reset(token)
+            logging.getLogger().removeHandler(_log_handler)
         except NameError:
             pass
         if tmp_path and os.path.exists(tmp_path):
