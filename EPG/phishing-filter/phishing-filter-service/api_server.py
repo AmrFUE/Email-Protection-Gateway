@@ -105,9 +105,11 @@ async def scan_eml(file: UploadFile = File(...)):
         with open(temp_file_path, "r", encoding="utf-8", errors="ignore") as f:
             raw_email_str = f.read()
 
+        logger.info(f"Phishing Scanner: Processing {filename}")
         # Parse EML contents using advanced parser
         email_data = EmailParser.parse_from_string(raw_email_str)
 
+        logger.info(f"Analyzed {len(email_data.get('urls', []))} URLs and headers.")
         # Run pipeline analyzers
         h_res = header_analyzer.analyze(email_data)
         u_res = url_analyzer.analyze(email_data)
@@ -115,6 +117,7 @@ async def scan_eml(file: UploadFile = File(...)):
 
         # Run risk aggregator
         agg_res = aggregator.aggregate(h_res, u_res, n_res)
+        logger.info(f"Final Phishing Verdict: {agg_res['verdict']} with score {agg_res['risk_score']}")
 
         # Structure response strictly according to the format
         verdict = agg_res["verdict"]  # "PHISHING" or "CLEAN"
