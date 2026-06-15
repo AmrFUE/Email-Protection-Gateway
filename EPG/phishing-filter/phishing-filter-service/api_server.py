@@ -154,6 +154,39 @@ async def scan_eml(file: UploadFile = File(...)):
             "urls_detected": [u["href"] for u in email_data.get("urls", [])]
         }
 
+        # --- Generate ASCII Report ---
+        report = []
+        report.append("")
+        report.append("=" * 80)
+        report.append("[+] PHISHING ANALYSIS REPORT")
+        report.append("=" * 80)
+        report.append(f"File: {filename}")
+        report.append(f"Verdict: {verdict}")
+        report.append(f"Final Score: {score}/100")
+        report.append(f"Confidence: {details['confidence']:.1f}%")
+        report.append(f"Mode: {details['mode']}")
+        report.append("")
+        report.append("-" * 28 + " Header Analysis " + "-" * 35)
+        report.append(f"Score: {h_res['score']:.1f}/100")
+        report.append("")
+        report.append("-" * 28 + " URL Analysis " + "-" * 38)
+        report.append(f"Score: {u_res['score']:.1f}/100")
+        report.append(f"URLs Found: {len(details['urls_detected'])}")
+        report.append("")
+        report.append("-" * 28 + " NLP Analysis " + "-" * 38)
+        report.append(f"Phishing Probability: {details['metrics']['nlp_score']:.2f}%")
+        report.append("")
+        report.append("Reasons:")
+        if reasons_list:
+            for r in reasons_list:
+                report.append(f"  [!] {r}")
+        else:
+            report.append("  No suspicious indicators detected.")
+        report.append("=" * 80)
+        
+        for line in report:
+            logger.info(line)
+
         return {
             "verdict": verdict,
             "score": score,

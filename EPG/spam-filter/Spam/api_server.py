@@ -483,6 +483,36 @@ async def scan(file: UploadFile = File(...)):
         verdict, score, note, details = compute_verdict(msg, raw_email)
         logger.info(f"Final Spam Verdict: {verdict} — Score: {score} — Note: {note}")
 
+        # --- Generate ASCII Report ---
+        report = []
+        report.append("")
+        report.append("=" * 80)
+        report.append("[+] SPAM ANALYSIS REPORT")
+        report.append("=" * 80)
+        report.append(f"File: {file.filename}")
+        report.append(f"Verdict: {verdict}")
+        report.append(f"Final Score: {score}/100")
+        report.append(f"Sender: {details['sender']}")
+        report.append(f"Subject: {details['subject']}")
+        report.append("")
+        report.append("-" * 28 + " Machine Learning " + "-" * 34)
+        report.append(f"Header Spam Probability: {details['header_spam_probability']*100:.2f}%")
+        report.append(f"Body Spam Probability: {details['body_spam_probability']*100:.2f}%")
+        report.append("")
+        report.append("-" * 28 + " Authentication & Rep " + "-" * 30)
+        report.append(f"SPF: {details['authentication']['spf']} | DKIM: {details['authentication']['dkim']} | DMARC: {details['authentication']['dmarc']}")
+        report.append(f"IP Reputation: {details['reputation']['ip_score']} | Domain Reputation: {details['reputation']['domain_score']}")
+        report.append("")
+        report.append("-" * 28 + " Score Breakdown " + "-" * 35)
+        for b in details["score_breakdown"]:
+            report.append(f"  {b['points']:+d} pts : {b['factor']}")
+        report.append("")
+        report.append(f"Reason: {note}")
+        report.append("=" * 80)
+        
+        for line in report:
+            logger.info(line)
+
         return {"verdict": verdict, "score": score, "note": note, "details": details, "logs": buf.getvalue()}
 
     except Exception as e:
