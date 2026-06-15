@@ -64,21 +64,25 @@ async def get_redis() -> aioredis.Redis:
 
 
 # ── Auth helpers
-def make_token(username: str) -> str:
-    return signer.dumps({"user": username, "ts": time.time()})
+def make_token(username: str, role: str) -> str:
+    return signer.dumps({"user": username, "role": role, "ts": time.time()})
 
-
-def check_token(token: str) -> bool:
+def check_token(token: str) -> dict:
     try:
-        signer.loads(token, max_age=86400)
-        return True
+        return signer.loads(token, max_age=86400)
     except (BadSignature, SignatureExpired):
-        return False
-
+        return None
 
 def require_auth(session: Optional[str] = Cookie(default=None)):
-    if not session or not check_token(session):
+    data = check_token(session) if session else None
+    if not data:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    return data
+
+def require_admin(user_data: dict = Depends(require_auth)):
+    if user_data.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+    return user_data
 
 
 # ── Auth routes
@@ -91,7 +95,7 @@ async def login(request: Request):
     # Root admin check
     if username == DASHBOARD_USER and password == DASHBOARD_PASS:
         resp = JSONResponse({"status": "ok", "role": "admin"})
-        resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
+        resp.set_cookie("session", make_token(username, "admin"), httponly=True, max_age=86400)
         return resp
         
     # Redis user check
@@ -108,7 +112,7 @@ async def login(request: Request):
             role = "analyst"
         if stored_pass == password:
             resp = JSONResponse({"status": "ok", "role": role})
-            resp.set_cookie("session", make_token(username), httponly=True, max_age=86400)
+            resp.set_cookie("session", make_token(username, role), httponly=True, max_age=86400)
             logger.info(f"Login OK: {username} (role={role})")
             return resp
         
@@ -390,7 +394,7 @@ async def get_settings(_=Depends(require_auth)):
     return defaults
 
 @app.post("/api/settings")
-async def save_settings(request: Request, _=Depends(require_auth)):
+async def save_settings(request: Request, _=Depends(require_admin)):
     data = await request.json()
     rdb = await get_redis()
     # Merge with existing settings in Redis
@@ -421,7 +425,7 @@ async def save_settings(request: Request, _=Depends(require_auth)):
     return {"status": "ok"}
 
 @app.get("/api/users")
-async def get_users(_=Depends(require_auth)):
+async def get_users(_=Depends(require_admin)):
     rdb = await get_redis()
     users = await rdb.hgetall("dashboard_users")
     # Return list of usernames, plus the root admin
@@ -436,7 +440,7 @@ async def get_users(_=Depends(require_auth)):
     return user_list
 
 @app.post("/api/users")
-async def add_user(request: Request, _=Depends(require_auth)):
+async def add_user(request: Request, _=Depends(require_admin)):
     data = await request.json()
     username = data.get("username")
     password = data.get("password")
@@ -454,7 +458,7 @@ async def add_user(request: Request, _=Depends(require_auth)):
     return {"status": "ok"}
 
 @app.put("/api/users/{username}")
-async def update_user(username: str, request: Request, _=Depends(require_auth)):
+async def update_user(username: str, request: Request, _=Depends(require_admin)):
     if username == DASHBOARD_USER:
         raise HTTPException(status_code=400, detail="Cannot modify root admin")
     rdb = await get_redis()
@@ -477,7 +481,7 @@ async def update_user(username: str, request: Request, _=Depends(require_auth)):
     return {"status": "ok"}
 
 @app.delete("/api/users/{username}")
-async def delete_user(username: str, _=Depends(require_auth)):
+async def delete_user(username: str, _=Depends(require_admin)):
     if username == DASHBOARD_USER:
         raise HTTPException(status_code=400, detail="Cannot delete root admin")
     rdb = await get_redis()
