@@ -334,15 +334,15 @@ def compute_verdict(msg, raw_email):
     score = 0
     breakdown = []
 
-    # 1. ML Header Model (capped at 3 pts to reduce false positive influence)
+    # 1. ML Header Model (0-4 pts)
     if spam_prob > 0.9:
-        score += 3; breakdown.append(("ML header (>90% spam)", 3))
+        score += 4; breakdown.append(("ML header (>90% spam)", 4))
     elif spam_prob > 0.75:
-        score += 2; breakdown.append(("ML header (>75% spam)", 2))
+        score += 3; breakdown.append(("ML header (>75% spam)", 3))
     elif spam_prob > 0.6:
-        score += 1; breakdown.append(("ML header (>60% spam)", 1))
+        score += 2; breakdown.append(("ML header (>60% spam)", 2))
     elif spam_prob > 0.5:
-        score += 0; breakdown.append(("ML header (>50% spam)", 0))
+        score += 1; breakdown.append(("ML header (>50% spam)", 1))
     elif spam_prob < 0.2:
         score -= 1; breakdown.append(("ML header (<20% spam)", -1))
 
@@ -376,15 +376,15 @@ def compute_verdict(msg, raw_email):
             ((ip_rep != -1 and ip_rep < 40) or (domain_rep != -1 and domain_rep < 40))):
         score += 2; breakdown.append(("Auth fail + bad reputation combo", 2))
 
-    # 6. ML Body (capped at 3 pts to reduce false positive influence)
+    # 6. ML Body (0-4 pts)
     if body_spam_prob > 0.9:
-        score += 3; breakdown.append(("ML body (>90% spam)", 3))
+        score += 4; breakdown.append(("ML body (>90% spam)", 4))
     elif body_spam_prob > 0.75:
-        score += 2; breakdown.append(("ML body (>75% spam)", 2))
+        score += 3; breakdown.append(("ML body (>75% spam)", 3))
     elif body_spam_prob > 0.6:
-        score += 1; breakdown.append(("ML body (>60% spam)", 1))
+        score += 2; breakdown.append(("ML body (>60% spam)", 2))
     elif body_spam_prob > 0.5:
-        score += 0; breakdown.append(("ML body (>50% spam)", 0))
+        score += 1; breakdown.append(("ML body (>50% spam)", 1))
     elif body_spam_prob < 0.2:
         score -= 1; breakdown.append(("ML body (<20% spam)", -1))
 
@@ -393,24 +393,24 @@ def compute_verdict(msg, raw_email):
         score += 2; breakdown.append(("Header + Body both flag spam", 2))
 
     # ── Final Decision ──
-    if spam_prob >= 0.98 and body_spam_prob >= 0.90:
+    if spam_prob >= 0.95 and body_spam_prob >= 0.90:
         verdict = "SPAM"
-        reason = "Both ML models extremely confident (header>=98%, body>=90%)"
-    elif body_spam_prob >= 0.95 and spam_prob >= 0.90:
+        reason = "Both ML models highly confident (header>=95%, body>=90%)"
+    elif score >= 8:
         verdict = "SPAM"
-        reason = f"Both models agree on spam (body={body_spam_prob:.2%}, header={spam_prob:.2%})"
-    elif score >= 10:
-        verdict = "SPAM"
-        reason = f"High combined score ({score} >= 10)"
-    elif score >= 7:
-        verdict = "SPAM"
-        reason = f"Moderate-high combined score ({score} >= 7)"
+        reason = f"High combined score ({score} >= 8)"
+    elif score >= 4:
+        verdict = "SUSPICIOUS"
+        reason = f"Moderate combined score ({score} >= 4)"
+    elif spam_prob > 0.80 or body_spam_prob > 0.80:
+        verdict = "SUSPICIOUS"
+        reason = "At least one ML model is >80% confident of spam"
     elif score <= 0 and spam_prob < 0.3 and body_spam_prob < 0.3:
         verdict = "HAM"
         reason = f"Low score ({score}) + low spam probabilities"
-    elif score <= 4:
+    elif score <= 2:
         verdict = "HAM"
-        reason = f"Low combined score ({score} <= 4)"
+        reason = f"Low combined score ({score} <= 2)"
     else:
         verdict = "HAM"
         reason = "Uncertain — defaulting to HAM to prevent false positives"
