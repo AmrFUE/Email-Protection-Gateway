@@ -98,11 +98,25 @@ class EPGOrchestrator:
         has_items_to_scan = malware_result.get('has_attachments', False) or malware_result.get('has_urls', False)
         malware_is_suspicious = malware_result.get('overall_verdict') == 'SUSPICIOUS'
 
-        # ── Stage 2: Dynamic Analysis
+        # ── Stage 2: PhishGuard Phishing Detection (fast NLP — runs before expensive sandbox)
+        logger.info(f"[{email_id}] Stage 2/4: PhishGuard Phishing Detection")
+        phishing_result = self._call_phishguard(eml_path, email_id)
+        log_entry['stages']['phishing'] = phishing_result
+
+        if phishing_result.get('verdict') == 'PHISHING':
+            log_entry['final_verdict'] = 'PHISHING'
+            log_entry['action'] = 'BLOCKED'
+            log_entry['block_reason'] = phishing_result.get('note', 'Detected as phishing')
+            self._quarantine(eml_path, email_id, 'phishing')
+            log_entry['scan_time'] = time.time() - start_time
+            self._save_log(log_entry)
+            return log_entry
+
+        # ── Stage 3: Dynamic Analysis (expensive sandbox — only for items that passed phishing)
         dynamic_skipped = False
         if has_items_to_scan or malware_is_suspicious:
             if os.environ.get("ENABLE_DYNAMIC", "true").lower() == "true":
-                logger.info(f"[{email_id}] Stage 2/4: Dynamic Analysis (Items found or Suspicious)")
+                logger.info(f"[{email_id}] Stage 3/4: Dynamic Analysis (Items found or Suspicious)")
 
                 dynamic_result = self._call_dynamic(eml_path, email_id)
                 log_entry['stages']['dynamic'] = dynamic_result
@@ -130,20 +144,6 @@ class EPGOrchestrator:
                     dynamic_skipped = True
             else:
                 dynamic_skipped = True
-
-        # ── Stage 3: PhishGuard Phishing Detection
-        logger.info(f"[{email_id}] Stage 3/4: PhishGuard Phishing Detection")
-        phishing_result = self._call_phishguard(eml_path, email_id)
-        log_entry['stages']['phishing'] = phishing_result
-
-        if phishing_result.get('verdict') == 'PHISHING':
-            log_entry['final_verdict'] = 'PHISHING'
-            log_entry['action'] = 'BLOCKED'
-            log_entry['block_reason'] = phishing_result.get('note', 'Detected as phishing')
-            self._quarantine(eml_path, email_id, 'phishing')
-            log_entry['scan_time'] = time.time() - start_time
-            self._save_log(log_entry)
-            return log_entry
 
         # ── Stage 4: Spam Filter
         logger.info(f"[{email_id}] Stage 4/4: Spam Filter")
