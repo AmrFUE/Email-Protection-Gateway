@@ -237,16 +237,22 @@ def check_dmarc(from_domain, spf_domain, dkim_domain, spf_result, dkim_result):
 
 # ── Reputation Checks (VirusTotal) ──
 
+VT_CACHE = {}
+
 def sender_domain_reputation(domain):
     try:
         if not domain:
             return -1
+        if domain in VT_CACHE:
+            return VT_CACHE[domain]
         url = f"https://www.virustotal.com/api/v3/domains/{domain}"
         r = http_requests.get(url, headers={"x-apikey": VT_API_KEY}, timeout=10)
         r.raise_for_status()
         stats = r.json()["data"]["attributes"]["last_analysis_stats"]
         s = stats["malicious"] + stats["suspicious"]
-        return 50 if s == 0 else max(20, 80 - s * 15)
+        score = 50 if s == 0 else max(20, 80 - s * 15)
+        VT_CACHE[domain] = score
+        return score
     except Exception:
         return -1
 
@@ -255,12 +261,16 @@ def ip_reputation_score(ip):
     try:
         if not ip:
             return -1
+        if ip in VT_CACHE:
+            return VT_CACHE[ip]
         url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
         r = http_requests.get(url, headers={"x-apikey": VT_API_KEY}, timeout=10)
         r.raise_for_status()
         stats = r.json()["data"]["attributes"]["last_analysis_stats"]
         s = stats["malicious"] + stats["suspicious"]
-        return 50 if s == 0 else max(20, 80 - s * 15)
+        score = 50 if s == 0 else max(20, 80 - s * 15)
+        VT_CACHE[ip] = score
+        return score
     except Exception:
         return -1
 
