@@ -800,6 +800,8 @@ async def check_eml_services(_=Depends(require_auth)):
                     if os.environ.get("DYNAMIC_API_KEY"):
                         headers["x-api-key"] = os.environ.get("DYNAMIC_API_KEY")
                     r = await client.get(svc["url"], headers=headers)
+                elif name == "phishing":
+                    r = await client.get(svc["url"], headers={"ngrok-skip-browser-warning": "true"})
                 else:
                     r = await client.get(svc["url"])
                 svc["status"] = "online" if r.status_code == 200 else "error"
@@ -1013,7 +1015,7 @@ async def scan_eml(file: UploadFile = File(...), _=Depends(require_auth)):
             async with httpx.AsyncClient(timeout=120.0) as client:
                 try:
                     files = {"file": (file.filename, content, "message/rfc822")}
-                    r = await client.post(f"{phishguard_url}/analyze", files=files)
+                    r = await client.post(f"{phishguard_url}/analyze", files=files, headers={"ngrok-skip-browser-warning": "true"})
                     if r.status_code == 200:
                         phishing_res = r.json()
                     else:

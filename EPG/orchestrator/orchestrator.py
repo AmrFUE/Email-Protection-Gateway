@@ -217,6 +217,7 @@ class EPGOrchestrator:
                 response = requests.post(
                     f"{PHISHGUARD_URL}/analyze",
                     files={"file": (os.path.basename(eml_path), f)},
+                    headers={"ngrok-skip-browser-warning": "true"},
                     timeout=120,
                 )
 
