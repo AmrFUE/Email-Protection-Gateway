@@ -119,24 +119,15 @@ def missing_headers(msg):
 
 
 def fake_from(msg):
-    from_dom = extract_domain(msg.get("From"))
-    ret_path = msg.get("Return-Path")
-    if not ret_path or ret_path.strip() in ("", "<>"):
-        return 0
-    ret_dom = extract_domain(ret_path)
-    if not from_dom or not ret_dom:
-        return 0
-    return int(from_dom.lower() != ret_dom.lower())
+    # Neutralized: Legitimate services (SendGrid, AWS SES) frequently use
+    # mismatched From and Return-Path domains for bounce handling.
+    return 0
 
 
 def message_id_mismatch(msg):
-    msgid = msg.get("Message-ID")
-    from_dom = extract_domain(msg.get("From"))
-    if msgid and "@" in msgid:
-        msg_dom = msgid.split("@")[-1].strip(">")
-        if from_dom:
-            return int(msg_dom.lower() != from_dom.lower())
-    return 1
+    # Neutralized: Cloud providers (Google Workspace, O365) often generate
+    # Message-IDs from their own domains which won't match the sender domain.
+    return 0
 
 
 def timestamp_anomaly(msg):
@@ -276,16 +267,12 @@ def ip_reputation_score(ip):
 
 
 def received_chain_anomaly(msg):
+    # Neutralized: Private IPs in the first hop are extremely common for
+    # users sending from home WiFi routers or corporate internal networks.
     received = msg.get_all("Received")
     if not received:
         return 1
     if len(received) > 6:
-        return 1
-    private_ip = re.compile(
-        r"(^|\D)(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|"
-        r"172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(\D|$)"
-    )
-    if private_ip.search(received[-1]):
         return 1
     return 0
 
@@ -347,15 +334,15 @@ def compute_verdict(msg, raw_email):
     score = 0
     breakdown = []
 
-    # 1. ML Header Model (0-4 pts)
+    # 1. ML Header Model (capped at 3 pts to reduce false positive influence)
     if spam_prob > 0.9:
-        score += 4; breakdown.append(("ML header (>90% spam)", 4))
+        score += 3; breakdown.append(("ML header (>90% spam)", 3))
     elif spam_prob > 0.75:
-        score += 3; breakdown.append(("ML header (>75% spam)", 3))
+        score += 2; breakdown.append(("ML header (>75% spam)", 2))
     elif spam_prob > 0.6:
-        score += 2; breakdown.append(("ML header (>60% spam)", 2))
+        score += 1; breakdown.append(("ML header (>60% spam)", 1))
     elif spam_prob > 0.5:
-        score += 1; breakdown.append(("ML header (>50% spam)", 1))
+        score += 0; breakdown.append(("ML header (>50% spam)", 0))
     elif spam_prob < 0.2:
         score -= 1; breakdown.append(("ML header (<20% spam)", -1))
 
@@ -389,15 +376,15 @@ def compute_verdict(msg, raw_email):
             ((ip_rep != -1 and ip_rep < 40) or (domain_rep != -1 and domain_rep < 40))):
         score += 2; breakdown.append(("Auth fail + bad reputation combo", 2))
 
-    # 6. ML Body (0-5 pts)
+    # 6. ML Body (capped at 3 pts to reduce false positive influence)
     if body_spam_prob > 0.9:
-        score += 5; breakdown.append(("ML body (>90% spam)", 5))
+        score += 3; breakdown.append(("ML body (>90% spam)", 3))
     elif body_spam_prob > 0.75:
-        score += 3; breakdown.append(("ML body (>75% spam)", 3))
+        score += 2; breakdown.append(("ML body (>75% spam)", 2))
     elif body_spam_prob > 0.6:
-        score += 2; breakdown.append(("ML body (>60% spam)", 2))
+        score += 1; breakdown.append(("ML body (>60% spam)", 1))
     elif body_spam_prob > 0.5:
-        score += 1; breakdown.append(("ML body (>50% spam)", 1))
+        score += 0; breakdown.append(("ML body (>50% spam)", 0))
     elif body_spam_prob < 0.2:
         score -= 1; breakdown.append(("ML body (<20% spam)", -1))
 
@@ -412,21 +399,21 @@ def compute_verdict(msg, raw_email):
     elif body_spam_prob >= 0.95 and spam_prob >= 0.90:
         verdict = "SPAM"
         reason = f"Both models agree on spam (body={body_spam_prob:.2%}, header={spam_prob:.2%})"
-    elif score >= 8:
+    elif score >= 10:
         verdict = "SPAM"
-        reason = f"High combined score ({score} >= 8)"
-    elif score >= 4:
+        reason = f"High combined score ({score} >= 10)"
+    elif score >= 7:
         verdict = "SPAM"
-        reason = f"Moderate-high combined score ({score} >= 4)"
+        reason = f"Moderate-high combined score ({score} >= 7)"
     elif score <= 0 and spam_prob < 0.3 and body_spam_prob < 0.3:
         verdict = "HAM"
         reason = f"Low score ({score}) + low spam probabilities"
-    elif score <= 2:
+    elif score <= 4:
         verdict = "HAM"
-        reason = f"Low combined score ({score} <= 2)"
+        reason = f"Low combined score ({score} <= 4)"
     else:
-        verdict = "SPAM"
-        reason = "Uncertain — flagging as spam for safety"
+        verdict = "HAM"
+        reason = "Uncertain — defaulting to HAM to prevent false positives"
 
     # Normalize score to 0-100
     normalized_score = max(0, min(100, round((score + 7) / 34 * 100)))
