@@ -159,15 +159,7 @@ class EPGOrchestrator:
             self._save_log(log_entry)
             return log_entry
 
-        # Suspicious spam — deliver to Junk with a warning header
-        if spam_result.get('verdict') == 'SUSPICIOUS':
-            log_entry['final_verdict'] = 'SUSPICIOUS'
-            log_entry['action'] = 'SUSPICIOUS_SPAM'
-            log_entry['block_reason'] = spam_result.get('note', 'Detected as suspicious spam')
-            self._quarantine(eml_path, email_id, 'suspicious_spam')
-            log_entry['scan_time'] = time.time() - start_time
-            self._save_log(log_entry)
-            return log_entry
+        # (Suspicious spam block removed to enforce strict binary SPAM/CLEAN)
 
         # ── All clear — deliver (or quarantine if malware was sus but dynamic skipped)
         if malware_is_suspicious and dynamic_skipped:
