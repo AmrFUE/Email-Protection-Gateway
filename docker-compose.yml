@@ -126,6 +126,7 @@ services:
       DYNAMIC_URL: http://34.12.15.69:8000
       ENABLE_DYNAMIC: "true"
       DYNAMIC_API_KEY: "knowhow-default-dev-key-change-me"
+      PHISHGUARD_URL: "https://ad09-196-139-203-125.ngrok-free.app"
       QUARANTINE_DIR: /data/quarantine
     volumes:
       - quarantine_data:/data/quarantine
@@ -157,8 +158,7 @@ services:
       IMAP_PORT: "993"
       IMAP_USER: "admin@jawabi.app"
       IMAP_PASS: "admin123"
-      DYNAMIC_URL: http://34.12.15.69:8000
-      DYNAMIC_API_KEY: "knowhow-default-dev-key-change-me"
+      PHISHGUARD_URL: "https://ad09-196-139-203-125.ngrok-free.app"
     volumes:
       - mailbox_data:/data/mailbox
       - quarantine_data:/data/quarantine:ro

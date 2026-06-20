@@ -631,7 +631,7 @@ tbody td{padding:12px 16px;font-size:.8rem}
         <div class="services-bar" id="eml-services-bar">
           <div class="service-badge"><div class="service-dot unknown" id="dot-malware"></div>Malware Scanner</div>
           <div class="service-badge"><div class="service-dot unknown" id="dot-dynamic"></div>Dynamic Sandbox</div>
-          <div class="service-badge"><div class="service-dot unknown" id="dot-phishing"></div>Phishing Filter</div>
+          <div class="service-badge"><div class="service-dot unknown" id="dot-phishing"></div>PhishGuard</div>
           <div class="service-badge"><div class="service-dot unknown" id="dot-spam"></div>Spam Filter</div>
         </div>
 
@@ -1177,28 +1177,123 @@ function buildModelAnalysis(stages) {
     html += `</div>`;
   }
 
-  // ── PHISHING ──
+  // ── PHISHGUARD ──
   if (stages.phishing) {
     const p = stages.phishing;
-    html += `<div class="model-section"><h5>🎣 Phishing Filter</h5>`;
+    html += `<div class="model-section"><h5>🎣 PhishGuard Phishing Detection</h5>`;
     const pv = p.verdict||'–';
-    html += `<div class="stage-row"><span>Verdict</span><span class="badge ${pv==='CLEAN'?'clean':'blocked'}">${pv}</span></div>`;
-    // Parse confidence from note e.g. "ML confidence: 80.2% (Benign 19.8%, Spam 0.0%, Phishing 80.2%)"
-    const note = p.note||'';
-    const benignM = note.match(/Benign\s+([\d.]+)%/);
-    const spamM   = note.match(/Spam\s+([\d.]+)%/);
-    const phishM  = note.match(/Phishing\s+([\d.]+)%/);
-    if (benignM || spamM || phishM) {
-      const benign = parseFloat(benignM?.[1]||0);
-      const spam   = parseFloat(spamM?.[1]||0);
-      const phish  = parseFloat(phishM?.[1]||0);
-      html += `
-        <div style="margin-top:10px;">
-          <div class="prob-row"><span class="prob-label">Benign</span>${bar(benign,'var(--green)')}<span class="prob-val" style="color:var(--green)">${benign.toFixed(1)}%</span></div>
-          <div class="prob-row"><span class="prob-label">Spam</span>${bar(spam,'var(--yellow)')}<span class="prob-val" style="color:var(--yellow)">${spam.toFixed(1)}%</span></div>
-          <div class="prob-row"><span class="prob-label">Phishing</span>${bar(phish,'var(--red)')}<span class="prob-val" style="color:var(--red)">${phish.toFixed(1)}%</span></div>
-        </div>`;
+    const pcls = pv==='CLEAN'?'clean':(pv==='PHISHING'?'blocked':'suspicious');
+    html += `<div class="stage-row"><span>Verdict</span><span class="badge ${pcls}">${pv}</span></div>`;
+    if (p.score !== undefined) html += `<div class="stage-row"><span>Score</span><span>${p.score}/100</span></div>`;
+    if (p.confidence !== undefined) html += `<div class="stage-row"><span>Confidence</span><span>${(p.confidence * 100).toFixed(1)}%</span></div>`;
+    if (p.action) html += `<div class="stage-row"><span>Action</span><span>${p.action}</span></div>`;
+
+    // 4-Engine Scores
+    const det = p.details || {};
+    const es = det.engine_scores;
+    if (es) {
+      html += `<h5 style="margin-top:12px;">⚙️ Engine Scores</h5>`;
+      for (const [eng, sc] of Object.entries(es)) {
+        const parts = sc.split('/');
+        const val = parseFloat(parts[0]) || 0;
+        const max = parseFloat(parts[1]) || 25;
+        const pct = (val / max) * 100;
+        const col = pct > 60 ? 'var(--red)' : pct > 30 ? 'var(--yellow)' : 'var(--green)';
+        html += `<div class="prob-row"><span class="prob-label">${eng.charAt(0).toUpperCase()+eng.slice(1)}</span>${bar(pct, col)}<span class="prob-val" style="color:${col}">${sc}</span></div>`;
+      }
     }
+
+    // Engine 1 - Header Details
+    const e1 = det.engine_1_header;
+    if (e1) {
+      html += `<details style="margin-top:10px;background:var(--surface);padding:8px;border-radius:4px;">
+        <summary style="font-size:.75rem;cursor:pointer;color:var(--muted);font-weight:bold;">🔍 Header Analysis (${e1.score}/25)</summary>
+        <div style="margin-top:6px;font-size:.75rem;">`;
+      const flags1 = [
+        ['Display Name Spoofing', e1.display_name_spoofing_detected],
+        ['Reply-To Mismatch', e1.reply_to_mismatch_detected],
+        ['X-Mailer Anomaly', e1.xmailer_anomaly_detected],
+        ['New Domain', e1.new_domain_flag],
+        ['Typosquatting', e1.typosquatting_detected],
+        ['Auth Failure', e1.auth_failure_detected]
+      ];
+      flags1.forEach(([name, val]) => {
+        const icon = val ? '🔴' : '🟢';
+        html += `<div style="margin:2px 0">${icon} ${name}: ${val ? 'Yes' : 'No'}</div>`;
+      });
+      if (e1.note) html += `<div style="margin-top:4px;color:var(--muted);font-style:italic">${e1.note}</div>`;
+      html += `</div></details>`;
+    }
+
+    // Engine 2 - Structure Details
+    const e2 = det.engine_2_structure;
+    if (e2) {
+      html += `<details style="margin-top:6px;background:var(--surface);padding:8px;border-radius:4px;">
+        <summary style="font-size:.75rem;cursor:pointer;color:var(--muted);font-weight:bold;">📐 Structure Analysis (${e2.score}/20)</summary>
+        <div style="margin-top:6px;font-size:.75rem;">`;
+      const flags2 = [
+        ['Hidden Text', e2.hidden_text_detected],
+        ['Zero-Width Chars', e2.zero_width_chars_detected],
+        ['Image-Only Email', e2.image_only_email],
+        ['Brand Impersonation', e2.brand_impersonation_detected],
+        ['Credential Form', e2.credential_form_detected],
+        ['Macro Detected', e2.macro_detected]
+      ];
+      flags2.forEach(([name, val]) => {
+        const icon = val ? '🔴' : '🟢';
+        html += `<div style="margin:2px 0">${icon} ${name}: ${val ? 'Yes' : 'No'}</div>`;
+      });
+      html += `</div></details>`;
+    }
+
+    // Engine 3 - NLP Details
+    const e3 = det.engine_3_nlp;
+    if (e3) {
+      html += `<details style="margin-top:6px;background:var(--surface);padding:8px;border-radius:4px;">
+        <summary style="font-size:.75rem;cursor:pointer;color:var(--muted);font-weight:bold;">🧠 NLP Analysis (${e3.score}/30)</summary>
+        <div style="margin-top:6px;font-size:.75rem;">`;
+      html += `<div>Phishing Probability: ${((e3.phishing_probability||0)*100).toFixed(1)}%</div>`;
+      html += `<div>Predicted Intent: ${e3.predicted_intent || '–'}</div>`;
+      html += `<div>Urgency Score: ${e3.urgency_score || 0}</div>`;
+      html += `<div>Credential Harvesting: ${e3.credential_harvesting_score || 0}</div>`;
+      html += `<div>Financial Fraud: ${e3.financial_fraud_score || 0}</div>`;
+      if (e3.trigger_phrases && e3.trigger_phrases.length) {
+        html += `<div style="margin-top:4px">Trigger Phrases: ${e3.trigger_phrases.join(', ')}</div>`;
+      }
+      html += `</div></details>`;
+    }
+
+    // Engine 4 - Links Details
+    const e4 = det.engine_4_links;
+    if (e4) {
+      html += `<details style="margin-top:6px;background:var(--surface);padding:8px;border-radius:4px;">
+        <summary style="font-size:.75rem;cursor:pointer;color:var(--muted);font-weight:bold;">🔗 Link Analysis (${e4.score}/25)</summary>
+        <div style="margin-top:6px;font-size:.75rem;">`;
+      html += `<div>Total Links Found: ${e4.total_links_found || 0}</div>`;
+      const flags4 = [
+        ['Href Mismatch', e4.href_mismatch_detected],
+        ['URL Obfuscation', e4.url_obfuscation_detected],
+        ['Homograph Attack', e4.homograph_attack_detected],
+        ['Image-Wrapped Link', e4.image_wrapped_link_detected]
+      ];
+      flags4.forEach(([name, val]) => {
+        const icon = val ? '🔴' : '🟢';
+        html += `<div style="margin:2px 0">${icon} ${name}: ${val ? 'Yes' : 'No'}</div>`;
+      });
+      if (e4.suspicious_tlds && e4.suspicious_tlds.length) {
+        html += `<div style="margin-top:4px">Suspicious TLDs: ${e4.suspicious_tlds.join(', ')}</div>`;
+      }
+      html += `</div></details>`;
+    }
+
+    // Flags summary
+    if (det.total_flags_triggered !== undefined) {
+      html += `<div class="stage-row" style="margin-top:10px"><span>Flags Triggered</span><span>${det.total_flags_triggered}/12</span></div>`;
+    }
+    if (det.analysis_time_ms !== undefined) {
+      html += `<div class="stage-row"><span>Analysis Time</span><span>${det.analysis_time_ms.toFixed(0)}ms</span></div>`;
+    }
+
     if (p.note) html += `<div class="stage-row" style="margin-top:6px;"><span style="color:var(--muted);font-size:.74rem">${p.note}</span></div>`;
     html += `</div>`;
   }

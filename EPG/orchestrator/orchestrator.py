@@ -31,6 +31,9 @@ PHISHING_URL = os.environ.get("PHISHING_URL", "http://phishing-filter:8002")
 MALWARE_URL  = os.environ.get("MALWARE_URL",  "http://malware-scanner:8003")
 DYNAMIC_URL  = os.environ.get("DYNAMIC_URL",  "http://dynamic-analysis:8004")
 
+# ── PhishGuard External API (replaces internal phishing-filter)
+PHISHGUARD_URL = os.environ.get("PHISHGUARD_URL", "https://ad09-196-139-203-125.ngrok-free.app")
+
 # ── Redis
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
@@ -128,9 +131,9 @@ class EPGOrchestrator:
             else:
                 dynamic_skipped = True
 
-        # ── Stage 3: Phishing Filter
-        logger.info(f"[{email_id}] Stage 3/4: Phishing Filter")
-        phishing_result = self._call_stage(PHISHING_URL, eml_path, "phishing")
+        # ── Stage 3: PhishGuard Phishing Detection
+        logger.info(f"[{email_id}] Stage 3/4: PhishGuard Phishing Detection")
+        phishing_result = self._call_phishguard(eml_path, email_id)
         log_entry['stages']['phishing'] = phishing_result
 
         if phishing_result.get('verdict') == 'PHISHING':
@@ -205,6 +208,71 @@ class EPGOrchestrator:
         except Exception as e:
             logger.error(f"[{stage_name}] error: {e}")
             return {"verdict": "CLEAN", "note": f"{stage_name} error: {str(e)}"}
+
+    def _call_phishguard(self, eml_path: str, email_id: str) -> dict:
+        """Call the external PhishGuard Phishing Detection API."""
+        try:
+            logger.info(f"[{email_id}] Sending to PhishGuard: {PHISHGUARD_URL}/analyze")
+            with open(eml_path, 'rb') as f:
+                response = requests.post(
+                    f"{PHISHGUARD_URL}/analyze",
+                    files={"file": (os.path.basename(eml_path), f)},
+                    timeout=120,
+                )
+
+            if response.status_code != 200:
+                logger.warning(f"[{email_id}] PhishGuard returned status {response.status_code}")
+                return {"verdict": "CLEAN", "note": f"PhishGuard unavailable ({response.status_code}), defaulting to CLEAN"}
+
+            data = response.json()
+
+            # ── Brief Verdict (for routing)
+            verdict = data.get('verdict', 'CLEAN')
+            score = data.get('score', 0)
+            note = data.get('note', '')
+            confidence = data.get('confidence', 0)
+            action = data.get('action', 'DELIVER')
+
+            # ── Full Detailed Report (for forensics)
+            details = data.get('details', {})
+
+            # ── Console output for real-time visibility
+            logger.info(f"")
+            logger.info(f"════════════════════════════════════════════════════")
+            logger.info(f"[{email_id}] PhishGuard Result:")
+            logger.info(f"  Verdict:    {verdict}")
+            logger.info(f"  Score:      {score}/100")
+            logger.info(f"  Action:     {action}")
+            logger.info(f"  Confidence: {confidence}")
+            if details:
+                engine_scores = details.get('engine_scores', {})
+                if engine_scores:
+                    logger.info(f"  Engine Scores:")
+                    for eng, sc in engine_scores.items():
+                        logger.info(f"    {eng.capitalize():12s} {sc}")
+                flags = details.get('total_flags_triggered', 0)
+                duration = details.get('analysis_time_ms', 0)
+                logger.info(f"  Flags:      {flags}")
+                logger.info(f"  Duration:   {duration:.1f}ms")
+            logger.info(f"════════════════════════════════════════════════════")
+            logger.info(f"")
+
+            result = {
+                "verdict": verdict,
+                "score": score,
+                "note": note,
+                "confidence": confidence,
+                "action": action,
+                "details": details,
+            }
+            return result
+
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"[{email_id}] PhishGuard not reachable at {PHISHGUARD_URL} — skipping")
+            return {"verdict": "CLEAN", "note": "PhishGuard service offline"}
+        except Exception as e:
+            logger.error(f"[{email_id}] PhishGuard error: {e}")
+            return {"verdict": "CLEAN", "note": f"PhishGuard error: {str(e)}"}
 
     def _call_dynamic(self, eml_path: str, email_id: str) -> dict:
         """Call the KNOWHOW GCP Sandbox API (Async Polling)."""

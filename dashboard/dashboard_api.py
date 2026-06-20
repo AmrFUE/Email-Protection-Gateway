@@ -788,7 +788,7 @@ async def check_eml_services(_=Depends(require_auth)):
     services = {
         "malware": {"url": "http://malware-scanner:8003/health", "status": "unknown"},
         "dynamic": {"url": os.environ.get("DYNAMIC_URL", "http://dynamic-analysis:8004") + "/api/v1/health", "status": "unknown"},
-        "phishing": {"url": "http://phishing-filter:8002/health", "status": "unknown"},
+        "phishing": {"url": os.environ.get("PHISHGUARD_URL", "https://ad09-196-139-203-125.ngrok-free.app") + "/health", "status": "unknown"},
         "spam": {"url": "http://spam-filter:8001/health", "status": "unknown"}
     }
     
@@ -1008,8 +1008,18 @@ async def scan_eml(file: UploadFile = File(...), _=Depends(require_auth)):
         elif stages.get("dynamic", {}).get("verdict") == "SUSPICIOUS":
             final_verdict = "SUSPICIOUS"
         else:
-            # C. Phishing Filter (8002)
-            phishing_res = await call_service("http://phishing-filter:8002/scan", content, file.filename)
+            # C. PhishGuard Phishing Detection
+            phishguard_url = os.environ.get("PHISHGUARD_URL", "https://ad09-196-139-203-125.ngrok-free.app")
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                try:
+                    files = {"file": (file.filename, content, "message/rfc822")}
+                    r = await client.post(f"{phishguard_url}/analyze", files=files)
+                    if r.status_code == 200:
+                        phishing_res = r.json()
+                    else:
+                        phishing_res = {"verdict": "CLEAN", "note": f"PhishGuard returned {r.status_code}"}
+                except Exception as e:
+                    phishing_res = {"verdict": "CLEAN", "note": f"PhishGuard error: {str(e)}"}
             stages["phishing"] = phishing_res
             
             if phishing_res.get("verdict") == "PHISHING":
