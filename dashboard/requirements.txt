@@ -4,3 +4,4 @@ redis[asyncio]==5.0.8
 sse-starlette==2.1.0
 itsdangerous==2.2.0
 python-multipart==0.0.9
+httpx==0.27.0

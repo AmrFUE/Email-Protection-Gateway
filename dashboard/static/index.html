@@ -300,6 +300,34 @@ tbody td{padding:12px 16px;font-size:.8rem}
 .btn-delete-sel{background:transparent;border:1px solid var(--red);color:var(--red)}
 .btn-delete-sel:hover{background:var(--red);color:#fff}
 .q-check{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+
+/* ── SCAN EML ── */
+.eml-upload-zone{border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;background:var(--surface2);cursor:pointer;transition:border-color .2s}
+.eml-upload-zone:hover{border-color:var(--blue)}
+.eml-upload-zone.dragover{border-color:var(--green);background:#3fb95011}
+.eml-upload-zone input[type="file"]{display:none}
+.eml-progress{display:none;margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.eml-stages{display:flex;justify-content:space-between;position:relative}
+.eml-stages::before{content:'';position:absolute;top:15px;left:0;right:0;height:2px;background:var(--border);z-index:1}
+.eml-stage{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px;width:80px}
+.eml-stage-icon{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:all .3s}
+.eml-stage.active .eml-stage-icon{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 10px #1f6feb66;animation:pulse 1.5s infinite}
+.eml-stage.done .eml-stage-icon{background:var(--green);border-color:var(--green);color:#fff}
+.eml-stage.error .eml-stage-icon{background:var(--red);border-color:var(--red);color:#fff}
+.eml-stage-label{font-size:.7rem;color:var(--muted);font-weight:600;text-align:center;text-transform:uppercase}
+.eml-stage.active .eml-stage-label{color:var(--blue)}
+.eml-stage.done .eml-stage-label{color:var(--text)}
+.header-finding{display:flex;gap:12px;padding:12px;background:var(--surface2);border-left:4px solid var(--border);border-radius:4px;margin-bottom:8px;font-size:.85rem}
+.header-finding.critical{border-left-color:var(--red);background:#f8514911}
+.header-finding.warning{border-left-color:var(--yellow);background:#d2992211}
+.header-finding.pass{border-left-color:var(--green);background:#3fb95011}
+.services-bar{display:flex;gap:12px;margin-bottom:16px}
+.service-badge{display:flex;align-items:center;gap:6px;font-size:.75rem;padding:4px 10px;background:var(--surface2);border-radius:12px;border:1px solid var(--border)}
+.service-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.service-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.service-dot.offline{background:var(--red);box-shadow:0 0 6px var(--red)}
+.service-dot.unknown{background:var(--yellow)}
+
 .preview-modal{position:fixed;inset:0;background:#00000088;backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100}
 .preview-modal.open{display:flex}
 .preview-content{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:700px;max-width:95vw;max-height:85vh;overflow-y:auto}
@@ -362,6 +390,8 @@ tbody td{padding:12px 16px;font-size:.8rem}
         <span class="icon">🔍</span>Scan Logs</a>
       <a onclick="showPage('quarantine')" id="nav-quarantine">
         <span class="icon">🔒</span>Quarantine</a>
+      <a onclick="showPage('scaneml')" id="nav-scaneml">
+        <span class="icon">📩</span>Scan .eml</a>
     </nav>
     <div class="sidebar-footer" style="display:flex;flex-direction:column;gap:12px;">
       <a onclick="showPage('settings')" id="nav-settings" style="display:flex;align-items:center;gap:10px;color:var(--muted);text-decoration:none;font-size:.875rem;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
@@ -586,6 +616,62 @@ tbody td{padding:12px 16px;font-size:.8rem}
             <div class="pagination-info" id="q-page-info">Showing 0 results</div>
             <div class="pagination-btns" id="q-page-btns"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- SCAN EML PAGE -->
+      <div class="page" id="page-scaneml">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;font-weight:700">Scan .eml File</h2>
+            <p style="font-size:.8rem;color:var(--muted)">Upload an original email file for deep header and content analysis</p>
+          </div>
+        </div>
+        
+        <div class="services-bar" id="eml-services-bar">
+          <div class="service-badge"><div class="service-dot unknown" id="dot-malware"></div>Malware Scanner</div>
+          <div class="service-badge"><div class="service-dot unknown" id="dot-dynamic"></div>Dynamic Sandbox</div>
+          <div class="service-badge"><div class="service-dot unknown" id="dot-phishing"></div>Phishing Filter</div>
+          <div class="service-badge"><div class="service-dot unknown" id="dot-spam"></div>Spam Filter</div>
+        </div>
+
+        <div class="eml-upload-zone" id="eml-dropzone" onclick="document.getElementById('eml-file').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleEmlDrop(event)">
+          <div style="font-size:2rem;margin-bottom:12px">📥</div>
+          <h3 style="font-size:1rem;margin-bottom:8px">Click to upload or drag & drop</h3>
+          <p style="font-size:.8rem;color:var(--muted)">Accepts raw .eml files. Preserves original headers for accurate analysis.</p>
+          <input type="file" id="eml-file" accept=".eml,.msg,.txt" onchange="scanEml(this.files[0])">
+        </div>
+        
+        <div class="eml-progress" id="eml-progress">
+          <div style="text-align:center;margin-bottom:24px;font-weight:600" id="eml-status-text">Uploading and Parsing Email...</div>
+          <div class="eml-stages">
+            <div class="eml-stage active" id="stage-parse"><div class="eml-stage-icon">1</div><div class="eml-stage-label">Parse</div></div>
+            <div class="eml-stage" id="stage-malware"><div class="eml-stage-icon">2</div><div class="eml-stage-label">Malware</div></div>
+            <div class="eml-stage" id="stage-dynamic"><div class="eml-stage-icon">3</div><div class="eml-stage-label">Sandbox</div></div>
+            <div class="eml-stage" id="stage-phishing"><div class="eml-stage-icon">4</div><div class="eml-stage-label">Phishing</div></div>
+            <div class="eml-stage" id="stage-spam"><div class="eml-stage-icon">5</div><div class="eml-stage-label">Spam</div></div>
+          </div>
+        </div>
+        
+        <div id="eml-results" style="display:none;margin-top:24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h3 style="font-size:1.1rem;font-weight:600">Scan Results</h3>
+            <button class="btn-save" onclick="document.getElementById('eml-results').style.display='none';document.getElementById('eml-dropzone').style.display='block';document.getElementById('eml-file').value=''">Scan Another</button>
+          </div>
+          
+          <div class="modal-tabs" style="margin-bottom:16px">
+            <button class="active" onclick="switchEmlTab('overview', this)">Overview</button>
+            <button onclick="switchEmlTab('headers', this)">Header Analysis</button>
+            <button onclick="switchEmlTab('content', this)">Content</button>
+            <button onclick="switchEmlTab('detection', this)">Detection Stages</button>
+            <button onclick="switchEmlTab('raw', this)">Raw JSON</button>
+          </div>
+          
+          <div id="eml-tab-overview" class="modal-tab-content active"></div>
+          <div id="eml-tab-headers" class="modal-tab-content"></div>
+          <div id="eml-tab-content" class="modal-tab-content"></div>
+          <div id="eml-tab-detection" class="modal-tab-content"></div>
+          <div id="eml-tab-raw" class="modal-tab-content"></div>
         </div>
       </div>
 
@@ -1190,6 +1276,11 @@ function showPage(name, filter) {
     const navEl = document.getElementById('nav-quarantine');
     if (navEl) navEl.classList.add('active');
     loadQuarantine('all');
+  } else if (name === 'scaneml') {
+    document.getElementById('page-title').textContent = 'Scan .eml File';
+    const navEl = document.getElementById('nav-scaneml');
+    if (navEl) navEl.classList.add('active');
+    checkEmlServices();
   } else {
     const navEl = document.getElementById(`nav-${name}`);
     if (navEl) navEl.classList.add('active');
@@ -1745,6 +1836,169 @@ document.getElementById('preview-modal')?.addEventListener('click', e => {
 });
 
 // ── DEEP LINK ─────────────────────────────────────────
+
+// ── SCAN EML ─────────────────────────────────────────
+function handleEmlDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (file) scanEml(file);
+}
+
+async function checkEmlServices() {
+  const dots = ['malware', 'dynamic', 'phishing', 'spam'];
+  dots.forEach(d => {
+    const el = document.getElementById(`dot-${d}`);
+    if (el) el.className = 'service-dot unknown';
+  });
+  
+  const res = await fetchJSON('/api/scan/eml/services');
+  if (res) {
+    for (const [name, status] of Object.entries(res)) {
+      const el = document.getElementById(`dot-${name}`);
+      if (el) el.className = `service-dot ${status}`;
+    }
+  }
+}
+
+async function scanEml(file) {
+  if (!file) return;
+  
+  // Show progress UI
+  document.getElementById('eml-dropzone').style.display = 'none';
+  document.getElementById('eml-results').style.display = 'none';
+  document.getElementById('eml-progress').style.display = 'block';
+  
+  // Reset stages
+  const stages = ['parse', 'malware', 'dynamic', 'phishing', 'spam'];
+  stages.forEach(s => {
+    document.getElementById(`stage-${s}`).className = 'eml-stage';
+  });
+  document.getElementById('stage-parse').classList.add('active');
+  document.getElementById('eml-status-text').textContent = 'Uploading and Parsing Email...';
+  
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    
+    // Animate through stages artificially for better UX since it's a single API call
+    let currentStage = 0;
+    const interval = setInterval(() => {
+      if (currentStage < stages.length - 1) {
+        document.getElementById(`stage-${stages[currentStage]}`).classList.replace('active', 'done');
+        currentStage++;
+        document.getElementById(`stage-${stages[currentStage]}`).classList.add('active');
+        document.getElementById('eml-status-text').textContent = `Running ${stages[currentStage]} analysis...`;
+      }
+    }, 2000);
+    
+    const r = await fetch('/api/scan/eml', { method: 'POST', body: fd });
+    clearInterval(interval);
+    
+    if (!r.ok) {
+      throw new Error(`Server returned ${r.status}`);
+    }
+    
+    const data = await r.json();
+    
+    // Complete stages
+    stages.forEach(s => {
+      document.getElementById(`stage-${s}`).className = 'eml-stage done';
+    });
+    document.getElementById('eml-status-text').textContent = 'Scan Complete!';
+    
+    setTimeout(() => {
+      document.getElementById('eml-progress').style.display = 'none';
+      document.getElementById('eml-results').style.display = 'block';
+      renderEmlResults(data);
+    }, 500);
+    
+  } catch (err) {
+    document.getElementById('eml-status-text').textContent = `Error: ${err.message}`;
+    document.getElementById('stage-parse').classList.add('error');
+    setTimeout(() => {
+      document.getElementById('eml-progress').style.display = 'none';
+      document.getElementById('eml-dropzone').style.display = 'block';
+    }, 3000);
+  }
+}
+
+function switchEmlTab(tabId, btn) {
+  const tabs = btn.parentElement.querySelectorAll('button');
+  tabs.forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  
+  const contents = document.querySelectorAll('#eml-results .modal-tab-content');
+  contents.forEach(c => c.classList.remove('active'));
+  document.getElementById('eml-tab-' + tabId).classList.add('active');
+}
+
+function renderEmlResults(data) {
+  const meta = data.email_metadata || {};
+  const hdrs = meta.headers || {};
+  const cls = data.final_verdict === 'MALICIOUS' || data.final_verdict === 'PHISHING' ? 'blocked' : (data.final_verdict === 'SUSPICIOUS' || data.final_verdict === 'SPAM' ? 'suspicious' : 'clean');
+  
+  // Overview Tab
+  document.getElementById('eml-tab-overview').innerHTML = `
+    <div class="detail-row"><span>Final Verdict</span><span class="badge ${cls}">${data.final_verdict}</span></div>
+    <div class="detail-row"><span>Scan Time</span><span>${data.scan_time ? data.scan_time.toFixed(2)+'s' : '–'}</span></div>
+    <div class="detail-row"><span>From</span><span>${hdrs.From || '–'}</span></div>
+    <div class="detail-row"><span>To</span><span>${hdrs.To || '–'}</span></div>
+    <div class="detail-row"><span>Subject</span><span>${hdrs.Subject || '–'}</span></div>
+    <div class="detail-row"><span>Date</span><span>${hdrs.Date || '–'}</span></div>
+    <div class="detail-row"><span>Message-ID</span><span>${hdrs['Message-ID'] || '–'}</span></div>
+  `;
+  
+  // Headers Tab
+  const ha = meta.header_analysis || {findings:[]};
+  let findingsHtml = '';
+  if (ha.findings && ha.findings.length) {
+    ha.findings.forEach(f => {
+      const icon = f.severity === 'critical' ? '🔴' : (f.severity === 'warning' ? '🟡' : '🟢');
+      findingsHtml += `<div class="header-finding ${f.severity}"><span style="font-size:1.2rem">${icon}</span><div><strong>${f.severity.toUpperCase()}</strong><br>${f.message}</div></div>`;
+    });
+  } else {
+    findingsHtml = `<div class="header-finding pass"><span style="font-size:1.2rem">🟢</span><div><strong>PASS</strong><br>No suspicious header anomalies detected</div></div>`;
+  }
+  
+  document.getElementById('eml-tab-headers').innerHTML = `
+    <h4 style="margin-bottom:12px">Security Findings</h4>
+    ${findingsHtml}
+    <h4 style="margin:20px 0 12px">Raw Headers</h4>
+    <pre style="font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(hdrs, null, 2)}</pre>
+  `;
+  
+  // Content Tab
+  const urls = meta.urls || [];
+  const atts = meta.attachments || [];
+  let contentHtml = `<h4 style="margin-bottom:12px">Attachments (${atts.length})</h4>`;
+  if (atts.length) {
+    contentHtml += `<table class="scan-table" style="margin-bottom:20px"><thead><tr><th>Filename</th><th>Type</th><th>Size</th><th>SHA256</th></tr></thead><tbody>`;
+    atts.forEach(a => {
+      contentHtml += `<tr><td>${a.filename}</td><td>${a.content_type}</td><td>${a.size} bytes</td><td style="font-family:monospace;font-size:.7rem">${a.hash}</td></tr>`;
+    });
+    contentHtml += `</tbody></table>`;
+  } else {
+    contentHtml += `<p style="color:var(--muted);font-size:.8rem;margin-bottom:20px">No attachments found</p>`;
+  }
+  
+  contentHtml += `<h4 style="margin-bottom:12px">Extracted URLs (${urls.length})</h4>`;
+  if (urls.length) {
+    contentHtml += `<ul style="padding-left:20px;font-size:.8rem;word-break:break-all">`;
+    urls.forEach(u => contentHtml += `<li style="margin-bottom:4px"><a href="${u}" target="_blank" style="color:var(--blue)">${u}</a></li>`);
+    contentHtml += `</ul>`;
+  } else {
+    contentHtml += `<p style="color:var(--muted);font-size:.8rem">No URLs found</p>`;
+  }
+  document.getElementById('eml-tab-content').innerHTML = contentHtml;
+  
+  // Detection Tab (reusing existing builder)
+  document.getElementById('eml-tab-detection').innerHTML = buildModelAnalysis(data.stages || {});
+  
+  // Raw JSON
+  document.getElementById('eml-tab-raw').innerHTML = `
+    <pre style="font-size:.7rem;color:var(--text);overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:var(--surface2);padding:10px;border-radius:8px;">${JSON.stringify(data, null, 2)}</pre>
+  `;
+}
+
 if (window.location.pathname.includes('/settings')) {
   setTimeout(() => {
     if (document.getElementById('app').style.display !== 'none') {

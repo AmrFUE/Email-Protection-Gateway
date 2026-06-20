@@ -20,13 +20,19 @@ import json
 import logging
 import os
 import time
+import base64
+import hashlib
+import re
+import tempfile
+import uuid
+import httpx
 from datetime import datetime
 from email import message_from_bytes, policy
 from typing import AsyncGenerator, List, Optional
 import urllib.request
 
 import redis.asyncio as aioredis
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -773,6 +779,259 @@ async def bulk_quarantine_action(request: Request, _=Depends(require_auth)):
             errors.append({"email_id": eid, "error": str(exc)})
 
     return {"status": "ok", "processed": processed, "errors": errors}
+
+# ── Scan EML ──────────────────────────────────────────
+
+@app.get("/api/scan/eml/services")
+async def check_eml_services(_=Depends(require_auth)):
+    """Check health of all 4 detection layers."""
+    services = {
+        "malware": {"url": "http://malware-scanner:8003/health", "status": "unknown"},
+        "dynamic": {"url": os.environ.get("DYNAMIC_URL", "http://dynamic-analysis:8004") + "/api/v1/health", "status": "unknown"},
+        "phishing": {"url": "http://phishing-filter:8002/health", "status": "unknown"},
+        "spam": {"url": "http://spam-filter:8001/health", "status": "unknown"}
+    }
+    
+    async with httpx.AsyncClient(timeout=2.0) as client:
+        for name, svc in services.items():
+            try:
+                if name == "dynamic":
+                    headers = {}
+                    if os.environ.get("DYNAMIC_API_KEY"):
+                        headers["x-api-key"] = os.environ.get("DYNAMIC_API_KEY")
+                    r = await client.get(svc["url"], headers=headers)
+                else:
+                    r = await client.get(svc["url"])
+                svc["status"] = "online" if r.status_code == 200 else "error"
+            except Exception:
+                svc["status"] = "offline"
+                
+    return {k: v["status"] for k, v in services.items()}
+
+
+@app.post("/api/scan/eml")
+async def scan_eml(file: UploadFile = File(...), _=Depends(require_auth)):
+    """
+    Parse an EML file, perform header security analysis, and route it through 
+    the full EPG pipeline: Malware -> Dynamic -> Phishing -> Spam.
+    """
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+        
+    start_time = time.time()
+    msg = message_from_bytes(content, policy=policy.default)
+    
+    # 1. Parsing & Header Security Analysis
+    headers = {
+        "From": str(msg.get("From", "")),
+        "To": str(msg.get("To", "")),
+        "Subject": str(msg.get("Subject", "")),
+        "Date": str(msg.get("Date", "")),
+        "Message-ID": str(msg.get("Message-ID", "")),
+        "Reply-To": str(msg.get("Reply-To", "")),
+        "Return-Path": str(msg.get("Return-Path", "")),
+    }
+    
+    received_chain = msg.get_all("Received", [])
+    auth_results = str(msg.get("Authentication-Results", ""))
+    
+    header_analysis = {
+        "spf": "pass" if "spf=pass" in auth_results.lower() else "fail" if "spf=fail" in auth_results.lower() else "unknown",
+        "dkim": "pass" if "dkim=pass" in auth_results.lower() else "fail" if "dkim=fail" in auth_results.lower() else "unknown",
+        "dmarc": "pass" if "dmarc=pass" in auth_results.lower() else "fail" if "dmarc=fail" in auth_results.lower() else "unknown",
+        "hop_count": len(received_chain),
+        "received_chain": [str(r) for r in received_chain],
+        "findings": []
+    }
+    
+    # Simple Header Checks
+    if not headers.get("Message-ID"):
+        header_analysis["findings"].append({"severity": "warning", "message": "Missing Message-ID header"})
+    if not headers.get("Date"):
+        header_analysis["findings"].append({"severity": "warning", "message": "Missing Date header"})
+        
+    # Mismatches
+    from_header = headers.get("From", "")
+    reply_to = headers.get("Reply-To", "")
+    return_path = headers.get("Return-Path", "")
+    
+    # Extract email address using regex
+    email_re = re.compile(r'<([^>]+)>')
+    from_match = email_re.search(from_header)
+    from_email = from_match.group(1).strip().lower() if from_match else from_header.strip().lower()
+    
+    if reply_to:
+        rt_match = email_re.search(reply_to)
+        rt_email = rt_match.group(1).strip().lower() if rt_match else reply_to.strip().lower()
+        if rt_email and from_email and rt_email != from_email:
+            header_analysis["findings"].append({"severity": "warning", "message": f"Reply-To ({rt_email}) differs from From address ({from_email})"})
+            
+    if return_path:
+        rp_match = email_re.search(return_path)
+        rp_email = rp_match.group(1).strip().lower() if rp_match else return_path.strip().lower()
+        from_domain = from_email.split('@')[-1] if '@' in from_email else ""
+        rp_domain = rp_email.split('@')[-1] if '@' in rp_email else ""
+        if from_domain and rp_domain and from_domain != rp_domain:
+            header_analysis["findings"].append({"severity": "warning", "message": f"Return-Path domain ({rp_domain}) differs from From domain ({from_domain})"})
+            
+    # Auth failures
+    if header_analysis["spf"] == "fail":
+        header_analysis["findings"].append({"severity": "critical", "message": "SPF authentication failed"})
+    if header_analysis["dkim"] == "fail":
+        header_analysis["findings"].append({"severity": "critical", "message": "DKIM signature validation failed"})
+    if header_analysis["dmarc"] == "fail":
+        header_analysis["findings"].append({"severity": "critical", "message": "DMARC policy evaluation failed"})
+        
+    # Extract Body & URLs for display
+    plain_text = ""
+    html_text = ""
+    attachments_info = []
+    
+    for part in msg.walk():
+        content_type = part.get_content_type()
+        disposition = str(part.get("Content-Disposition", ""))
+        
+        if part.get_content_maintype() == 'multipart':
+            continue
+            
+        is_attachment = "attachment" in disposition or "inline" in disposition or content_type not in ('text/plain', 'text/html')
+        
+        if is_attachment:
+            filename = part.get_filename() or "unnamed_attachment"
+            payload = part.get_payload(decode=True) or b""
+            attachments_info.append({
+                "filename": filename,
+                "content_type": content_type,
+                "size": len(payload),
+                "hash": hashlib.sha256(payload).hexdigest()
+            })
+        else:
+            payload = part.get_payload(decode=True) or b""
+            charset = part.get_content_charset() or 'utf-8'
+            try:
+                decoded = payload.decode(charset, errors='replace')
+            except:
+                decoded = payload.decode('utf-8', errors='replace')
+                
+            if content_type == 'text/html':
+                html_text += decoded
+            elif content_type == 'text/plain':
+                plain_text += decoded
+                
+    # Extract URLs
+    url_pattern = re.compile(r'https?://[^\s<>"\')\]]+', re.IGNORECASE)
+    urls = list(set(url_pattern.findall(plain_text) + url_pattern.findall(html_text)))
+    
+    email_metadata = {
+        "headers": headers,
+        "header_analysis": header_analysis,
+        "attachments": attachments_info,
+        "urls": urls
+    }
+    
+    # 2. Pipeline Routing
+    stages = {}
+    final_verdict = "CLEAN"
+    
+    async def call_service(url, file_content, filename):
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                files = {"file": (filename, file_content, "message/rfc822")}
+                r = await client.post(url, files=files)
+                if r.status_code == 200:
+                    return r.json()
+                return {"verdict": "ERROR", "overall_verdict": "ERROR", "note": f"Service returned {r.status_code}"}
+            except Exception as e:
+                return {"verdict": "ERROR", "overall_verdict": "ERROR", "note": f"Connection error: {str(e)}"}
+                
+    # A. Malware Scanner (8003)
+    malware_res = await call_service("http://malware-scanner:8003/scan/eml", content, file.filename)
+    stages["malware"] = malware_res
+    
+    if malware_res.get("overall_verdict") == "MALICIOUS":
+        final_verdict = "MALICIOUS"
+    else:
+        # B. Dynamic Sandbox (if needed)
+        has_items = malware_res.get("has_attachments") or malware_res.get("has_urls")
+        is_suspicious = malware_res.get("overall_verdict") == "SUSPICIOUS"
+        dynamic_skipped = True
+        
+        if has_items or is_suspicious:
+            dynamic_url = os.environ.get("DYNAMIC_URL", "http://dynamic-analysis:8004")
+            dynamic_api_key = os.environ.get("DYNAMIC_API_KEY", "")
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                try:
+                    req_headers = {"x-api-key": dynamic_api_key} if dynamic_api_key else {}
+                    files = {"file": (file.filename, content, "message/rfc822")}
+                    submit_r = await client.post(f"{dynamic_url}/api/v1/analyze", files=files, headers=req_headers)
+                    
+                    if submit_r.status_code == 200:
+                        job_id = submit_r.json().get("job_id")
+                        if job_id:
+                            stages["dynamic"] = {"verdict": "PENDING", "note": "Polling sandbox..."}
+                            for _ in range(6):
+                                await asyncio.sleep(5)
+                                status_r = await client.get(f"{dynamic_url}/api/v1/status/{job_id}", headers=req_headers)
+                                if status_r.status_code == 200:
+                                    data = status_r.json()
+                                    if data.get("status") == "completed":
+                                        is_mal = data.get("is_malware", False)
+                                        is_phish = data.get("is_phishing", False)
+                                        risk = data.get("risk_level", "low").lower()
+                                        
+                                        v = "CLEAN"
+                                        if is_mal or risk == "high": v = "MALICIOUS"
+                                        elif is_phish or risk == "medium": v = "SUSPICIOUS"
+                                        
+                                        stages["dynamic"] = {
+                                            "verdict": v,
+                                            "note": data.get("verdict_summary", "Completed"),
+                                            "raw_report": data
+                                        }
+                                        dynamic_skipped = False
+                                        break
+                                    elif data.get("status") == "failed":
+                                        stages["dynamic"] = {"verdict": "ERROR", "note": "Sandbox job failed"}
+                                        break
+                            
+                            if stages["dynamic"].get("verdict") == "PENDING":
+                                stages["dynamic"] = {"verdict": "SKIPPED", "note": "Sandbox timed out after 30s"}
+                    else:
+                        stages["dynamic"] = {"verdict": "SKIPPED", "note": f"Sandbox submit failed: {submit_r.status_code}"}
+                except Exception as e:
+                    stages["dynamic"] = {"verdict": "SKIPPED", "note": f"Sandbox error: {str(e)}"}
+                    
+        if stages.get("dynamic", {}).get("verdict") == "MALICIOUS":
+            final_verdict = "MALICIOUS"
+        elif stages.get("dynamic", {}).get("verdict") == "SUSPICIOUS":
+            final_verdict = "SUSPICIOUS"
+        else:
+            # C. Phishing Filter (8002)
+            phishing_res = await call_service("http://phishing-filter:8002/scan", content, file.filename)
+            stages["phishing"] = phishing_res
+            
+            if phishing_res.get("verdict") == "PHISHING":
+                final_verdict = "PHISHING"
+            else:
+                # D. Spam Filter (8001)
+                spam_res = await call_service("http://spam-filter:8001/scan", content, file.filename)
+                stages["spam"] = spam_res
+                
+                if spam_res.get("verdict") == "SPAM":
+                    final_verdict = "SPAM"
+                elif spam_res.get("verdict") == "SUSPICIOUS":
+                    final_verdict = "SUSPICIOUS"
+                elif is_suspicious and dynamic_skipped:
+                    final_verdict = "SUSPICIOUS"
+                    
+    return {
+        "email_metadata": email_metadata,
+        "stages": stages,
+        "final_verdict": final_verdict,
+        "scan_time": time.time() - start_time
+    }
 
 
 # ── Serve HTML
