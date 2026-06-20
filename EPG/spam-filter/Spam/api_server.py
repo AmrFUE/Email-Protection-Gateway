@@ -393,27 +393,19 @@ def compute_verdict(msg, raw_email):
         score += 2; breakdown.append(("Header + Body both flag spam", 2))
 
     # ── Final Decision ──
+    # STRICT BINARY DECISION: NO MORE "SUSPICIOUS"
     if spam_prob >= 0.95 and body_spam_prob >= 0.90:
         verdict = "SPAM"
         reason = "Both ML models highly confident (header>=95%, body>=90%)"
-    elif score >= 8:
-        verdict = "SPAM"
-        reason = f"High combined score ({score} >= 8)"
-    elif score >= 4:
-        verdict = "SUSPICIOUS"
-        reason = f"Moderate combined score ({score} >= 4)"
     elif spam_prob > 0.80 or body_spam_prob > 0.80:
-        verdict = "SUSPICIOUS"
+        verdict = "SPAM"
         reason = "At least one ML model is >80% confident of spam"
-    elif score <= 0 and spam_prob < 0.3 and body_spam_prob < 0.3:
-        verdict = "HAM"
-        reason = f"Low score ({score}) + low spam probabilities"
-    elif score <= 2:
-        verdict = "HAM"
-        reason = f"Low combined score ({score} <= 2)"
+    elif score >= 6:
+        verdict = "SPAM"
+        reason = f"Combined score ({score} >= 6)"
     else:
         verdict = "HAM"
-        reason = "Uncertain — defaulting to HAM to prevent false positives"
+        reason = f"Combined score ({score} < 6) with no high ML confidence"
 
     # Normalize score to 0-100
     normalized_score = max(0, min(100, round((score + 7) / 34 * 100)))
