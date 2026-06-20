@@ -949,8 +949,9 @@ function renderWithDateSeps(logs) {
 
 function rowHTML(e) {
   const t   = new Date(e.timestamp).toLocaleTimeString();
-  const cls = e.action==='BLOCKED'?'blocked':e.action==='QUARANTINED'?'suspicious':e.action==='TAGGED'?'spam':'clean';
-  const lbl = e.action==='BLOCKED'?'🚫 Blocked':e.action==='QUARANTINED'?'⚠️ Suspicious':e.action==='TAGGED'?'📁 Spam':'✅ Clean';
+  const isSus = e.action === 'QUARANTINED' || e.action === 'SUSPICIOUS_SPAM';
+  const cls = e.action==='BLOCKED'?'blocked':isSus?'suspicious':e.action==='TAGGED'?'spam':'clean';
+  const lbl = e.action==='BLOCKED'?'🚫 Blocked':isSus?'⚠️ Suspicious':e.action==='TAGGED'?'📁 Spam':'✅ Clean';
   const stage = e.final_verdict||'CLEAN';
   const scan  = e.scan_time ? e.scan_time.toFixed(1)+'s' : '–';
   
@@ -1061,7 +1062,7 @@ async function openDetail(id) {
       <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.malware?.logs || 'No logs captured.'}</pre>
     </div>
     <div id="tab-phishing" class="modal-tab-content">
-      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.phishing?.logs || 'No logs captured.'}</pre>
+      <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.phishing?.logs || (eClean.stages?.phishing?.details ? JSON.stringify(eClean.stages.phishing.details, null, 2) : 'No logs captured.')}</pre>
     </div>
     <div id="tab-spam" class="modal-tab-content">
       <pre style="margin-top:10px;font-size:.7rem;color:#00ff00;overflow-x:auto;white-space:pre-wrap;font-family:monospace;background:#1e1e1e;padding:10px;border-radius:8px;">${eClean.stages?.spam?.logs || 'No logs captured.'}</pre>
