@@ -212,10 +212,10 @@ class EPGOrchestrator:
     def _call_phishguard(self, eml_path: str, email_id: str) -> dict:
         """Call the external PhishGuard Phishing Detection API."""
         try:
-            logger.info(f"[{email_id}] Sending to PhishGuard: {PHISHGUARD_URL}/analyze")
+            logger.info(f"[{email_id}] Sending to PhishGuard: {PHISHGUARD_URL}/scan")
             with open(eml_path, 'rb') as f:
                 response = requests.post(
-                    f"{PHISHGUARD_URL}/analyze",
+                    f"{PHISHGUARD_URL}/scan",
                     files={"file": (os.path.basename(eml_path), f)},
                     headers={"ngrok-skip-browser-warning": "true"},
                     timeout=120,

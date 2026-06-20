@@ -1015,7 +1015,7 @@ async def scan_eml(file: UploadFile = File(...), _=Depends(require_auth)):
             async with httpx.AsyncClient(timeout=120.0) as client:
                 try:
                     files = {"file": (file.filename, content, "message/rfc822")}
-                    r = await client.post(f"{phishguard_url}/analyze", files=files, headers={"ngrok-skip-browser-warning": "true"})
+                    r = await client.post(f"{phishguard_url}/scan", files=files, headers={"ngrok-skip-browser-warning": "true"})
                     if r.status_code == 200:
                         phishing_res = r.json()
                     else:
