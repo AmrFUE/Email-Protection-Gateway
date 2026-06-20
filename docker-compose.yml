@@ -157,6 +157,8 @@ services:
       IMAP_PORT: "993"
       IMAP_USER: "admin@jawabi.app"
       IMAP_PASS: "admin123"
+      DYNAMIC_URL: http://34.12.15.69:8000
+      DYNAMIC_API_KEY: "knowhow-default-dev-key-change-me"
     volumes:
       - mailbox_data:/data/mailbox
       - quarantine_data:/data/quarantine:ro
