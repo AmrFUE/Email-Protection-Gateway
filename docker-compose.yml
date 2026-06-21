@@ -217,6 +217,7 @@ services:
       - SMTP_HOSTNAME=jawabi.app
       - LOCAL_DOMAIN=jawabi.app
       - RELAY_PORT=25
+      - RESULT_TIMEOUT=300
     volumes:
       - email_queue:/data/emails
     depends_on:
