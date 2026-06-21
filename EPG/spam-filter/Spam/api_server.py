@@ -397,15 +397,12 @@ def compute_verdict(msg, raw_email):
     if spam_prob >= 0.95 and body_spam_prob >= 0.90:
         verdict = "SPAM"
         reason = "Both ML models highly confident (header>=95%, body>=90%)"
-    elif spam_prob > 0.80 or body_spam_prob > 0.80:
+    elif score >= 4:
         verdict = "SPAM"
-        reason = "At least one ML model is >80% confident of spam"
-    elif score >= 6:
-        verdict = "SPAM"
-        reason = f"Combined score ({score} >= 6)"
+        reason = f"Combined score ({score} >= 4)"
     else:
         verdict = "HAM"
-        reason = f"Combined score ({score} < 6) with no high ML confidence"
+        reason = f"Combined score ({score} < 4) with no high ML confidence"
 
     # Normalize score to 0-100
     normalized_score = max(0, min(100, round((score + 7) / 34 * 100)))
