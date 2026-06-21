@@ -788,7 +788,7 @@ async def check_eml_services(_=Depends(require_auth)):
     services = {
         "malware": {"url": "http://malware-scanner:8003/health", "status": "unknown"},
         "dynamic": {"url": os.environ.get("DYNAMIC_URL", "http://dynamic-analysis:8004") + "/api/v1/health", "status": "unknown"},
-        "phishing": {"url": os.environ.get("PHISHGUARD_URL", "https://ad09-196-139-203-125.ngrok-free.app") + "/health", "status": "unknown"},
+        "phishing": {"url": os.environ.get("PHISHGUARD_URL", "https://4538-196-139-203-125.ngrok-free.app") + "/health", "status": "unknown"},
         "spam": {"url": "http://spam-filter:8001/health", "status": "unknown"}
     }
     
@@ -1011,7 +1011,7 @@ async def scan_eml(file: UploadFile = File(...), _=Depends(require_auth)):
             final_verdict = "SUSPICIOUS"
         else:
             # C. PhishGuard Phishing Detection
-            phishguard_url = os.environ.get("PHISHGUARD_URL", "https://ad09-196-139-203-125.ngrok-free.app")
+            phishguard_url = os.environ.get("PHISHGUARD_URL", "https://4538-196-139-203-125.ngrok-free.app")
             async with httpx.AsyncClient(timeout=120.0) as client:
                 try:
                     files = {"file": (file.filename, content, "message/rfc822")}

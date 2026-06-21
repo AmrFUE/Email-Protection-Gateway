@@ -32,7 +32,7 @@ MALWARE_URL  = os.environ.get("MALWARE_URL",  "http://malware-scanner:8003")
 DYNAMIC_URL  = os.environ.get("DYNAMIC_URL",  "http://dynamic-analysis:8004")
 
 # ── PhishGuard External API (replaces internal phishing-filter)
-PHISHGUARD_URL = os.environ.get("PHISHGUARD_URL", "https://ad09-196-139-203-125.ngrok-free.app")
+PHISHGUARD_URL = os.environ.get("PHISHGUARD_URL", "https://4538-196-139-203-125.ngrok-free.app")
 
 # ── Redis
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
