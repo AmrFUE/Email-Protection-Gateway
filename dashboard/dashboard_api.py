@@ -335,6 +335,17 @@ async def release_email(email_id: str, _=Depends(require_auth)):
         
     msg = message_from_bytes(content)
     
+    try:
+        if not msg.get("X-EPG-Warning"):
+            msg.add_header("X-EPG-Warning", "[RELEASED] Held for review and released by SOC")
+        original_subject = msg.get("Subject", "")
+        if not original_subject.startswith("[QUARANTINE]"):
+            del msg["Subject"]
+            msg["Subject"] = f"[QUARANTINE] {original_subject}"
+        content = msg.as_bytes()
+    except Exception as e:
+        logger.error(f"Error modifying released email: {e}")
+    
     # Extract recipients
     recipients = []
     for hdr in ['To', 'Cc']:
@@ -758,6 +769,19 @@ async def bulk_quarantine_action(request: Request, _=Depends(require_auth)):
                     continue
                 with open(eml_path, "rb") as f:
                     content = f.read()
+                
+                msg = message_from_bytes(content)
+                try:
+                    if not msg.get("X-EPG-Warning"):
+                        msg.add_header("X-EPG-Warning", "[RELEASED] Held for review and released by SOC")
+                    original_subject = msg.get("Subject", "")
+                    if not original_subject.startswith("[QUARANTINE]"):
+                        del msg["Subject"]
+                        msg["Subject"] = f"[QUARANTINE] {original_subject}"
+                    content = msg.as_bytes()
+                except Exception as e:
+                    logger.error(f"Error modifying bulk released email: {e}")
+                
                 import imaplib
                 IMAP_HOST = os.environ.get("MAILU_HOST", "mailserver")
                 IMAP_PORT_NUM = int(os.environ.get("IMAP_PORT", 993))

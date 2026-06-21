@@ -314,10 +314,8 @@ class EPGOrchestrator:
                         summary = data.get("verdict_summary", "Clean")
 
                         verdict = "CLEAN"
-                        if is_malware or risk == "high":
+                        if is_malware or is_phishing or risk in ["medium", "high", "critical"]:
                             verdict = "MALICIOUS"
-                        elif is_phishing or risk == "medium":
-                            verdict = "SUSPICIOUS"
 
                         logger.info(f"[{email_id}] GCP Sandbox completed: {verdict} ({summary})")
                         return {

@@ -126,29 +126,8 @@ class EPGBridgeHandler:
                 logger.error(f"Error modifying suspicious spam email: {e}")
 
         if action == "QUARANTINED":
-            try:
-                msg = message_from_bytes(content_to_save)
-                msg["X-EPG-Warning"] = f"[{verdict}] Held for review"
-                original_subject = msg.get("Subject", "")
-                del msg["Subject"]
-                msg["Subject"] = f"[QUARANTINE] {original_subject}"
-                if msg.is_multipart():
-                    for part in msg.walk():
-                        if part.get_content_maintype() != 'multipart' and part.get('Content-Disposition'):
-                            filename = part.get_filename() or "unknown_file"
-                            warning_text = (
-                                f"SECURITY WARNING:\n\n"
-                                f"The original attachment '{filename}' was flagged as {verdict}.\n"
-                                f"It has been removed and is held in quarantine pending SOC team review."
-                            )
-                            part.set_payload(warning_text)
-                            del part["Content-Type"]
-                            part["Content-Type"] = "text/plain; charset=utf-8"
-                            if "Content-Transfer-Encoding" in part: del part["Content-Transfer-Encoding"]
-                            if "Content-Disposition"       in part: del part["Content-Disposition"]
-                content_to_save = msg.as_bytes()
-            except Exception as e:
-                logger.error(f"Error modifying quarantined email: {e}")
+            logger.info(f"[{message_id[:8]}] QUARANTINED - Holding for admin review")
+            return "250 Message accepted"
 
         logger.info(f"[{message_id[:8]}] Forwarding to Mail Server ({action})")
         folder  = "Junk" if action in ["TAGGED", "SUSPICIOUS_SPAM"] else "INBOX"
