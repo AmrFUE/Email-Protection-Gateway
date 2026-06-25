@@ -87,6 +87,25 @@ Analyzes email headers and body content using two ML models.
 
 ---
 
+## Dashboard Screenshots
+
+<p align="center">
+  <img src="screenshots/Screenshot%202026-06-25%20154553.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154604.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154614.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154620.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154628.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154638.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154717.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154724.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154732.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154740.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154749.png" width="48%">
+  <img src="screenshots/Screenshot%202026-06-25%20154800.png" width="48%">
+</p>
+
+---
+
 ## Architecture
 
 > [!TIP]
