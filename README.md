@@ -87,22 +87,52 @@ Analyzes email headers and body content using two ML models.
 
 ---
 
-## Dashboard Screenshots
+## Dashboard Features
 
-<p align="center">
-  <img src="screenshots/Screenshot%202026-06-25%20154553.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154604.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154614.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154620.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154628.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154638.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154717.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154724.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154732.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154740.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154749.png" width="48%">
-  <img src="screenshots/Screenshot%202026-06-25%20154800.png" width="48%">
-</p>
+### 1. Login Page
+Secure access to the EPG Admin Dashboard.
+![Login Page](screenshots/Screenshot%202026-06-25%20154553.png)
+
+### 2. Overview Dashboard
+High-level metrics, threat breakdown chart, and recent activity feed.
+![Overview](screenshots/Screenshot%202026-06-25%20154604.png)
+
+### 3. Detailed Email Analysis
+Click on any email to view a detailed breakdown of the final verdict, confidence scores, and individual stage results.
+![Email Detail](screenshots/Screenshot%202026-06-25%20154638.png)
+
+### 4. Email Logs
+Comprehensive view of all processed emails, categorized by their verdicts.
+**All Logs:**
+![All Logs](screenshots/Screenshot%202026-06-25%20154614.png)
+
+**Blocked Logs:**
+![Blocked Logs](screenshots/Screenshot%202026-06-25%20154620.png)
+
+**Suspicious Logs:**
+![Suspicious Logs](screenshots/Screenshot%202026-06-25%20154628.png)
+
+**Spam Logs:**
+![Spam Logs](screenshots/Screenshot%202026-06-25%20154717.png)
+
+**Clean Logs:**
+![Clean Logs](screenshots/Screenshot%202026-06-25%20154724.png)
+
+### 5. Scan Logs & Filtering
+Advanced filtering and search capabilities across all scanned emails, with options to export data.
+![Scan Logs](screenshots/Screenshot%202026-06-25%20154732.png)
+
+### 6. Quarantine Management
+Review quarantined emails, preview their contents, and manually release or permanently delete them.
+![Quarantine](screenshots/Screenshot%202026-06-25%20154740.png)
+
+### 7. Manual Scanner
+Manually upload or drag-and-drop raw `.eml` files for deep analysis without going through the live SMTP bridge.
+![Scan .eml File](screenshots/Screenshot%202026-06-25%20154749.png)
+
+### 8. Settings & Configuration
+Manage external API keys (AlienVault, VirusTotal), configure pipeline stages, and handle user roles.
+![Settings](screenshots/Screenshot%202026-06-25%20154800.png)
 
 ---
 
